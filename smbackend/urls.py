@@ -1,3 +1,4 @@
+from django.conf.urls import url
 from django.contrib import admin
 from django.urls import include, re_path
 from django.utils.translation import gettext_lazy as _
@@ -10,11 +11,12 @@ from services import views
 from services.api import all_views as services_views
 from services.unit_redirect_viewset import UnitRedirectViewSet
 from shortcutter import urls as shortcutter_urls
-
+from digitraffic.views import DigiTrafficViewSet
 admin.site.site_header = _("Servicemap administration")
 admin.site.index_title = _("Application management")
 
 router = routers.DefaultRouter()
+router.register(r'digitraffic', DigiTrafficViewSet, basename='digitraffic')
 
 registered_api_views = set()
 
@@ -28,7 +30,6 @@ for view in services_views + munigeo_views + observations_views:
     if "basename" in view:
         kwargs["basename"] = view["basename"]
     router.register(view["name"], view["class"], **kwargs)
-
 
 urlpatterns = [
     # Examples:
@@ -44,3 +45,5 @@ urlpatterns = [
     re_path(r"^v2/suggestion/", views.suggestion, name="suggestion"),
     re_path(r"", include(shortcutter_urls)),
 ]
+
+print(urlpatterns)
