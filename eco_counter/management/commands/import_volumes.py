@@ -1,17 +1,19 @@
 import logging
 import requests
-import urllib
-import csv
+import pytz
 import math
-import pandas as pd 
 import io
+import pandas as pd 
+import dateutil.parser
+from django.utils.timezone import make_aware
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib.gis.geos import Point
 
-from eco_counter.models import Location, Observation
+from eco_counter.models import Location, Observation, ImportState
 
 LOCATIONS_URL = "https://dev.turku.fi/datasets/ecocounter/liikennelaskimet.geojson"
 OBSERATIONS_URL = "https://dev.turku.fi/datasets/ecocounter/2020/counters-15min.csv"
+#UTC_TIMEZONE = pytz.timezone("UTC")
 logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
@@ -43,20 +45,35 @@ class Command(BaseCommand):
 
         logger.info("Retrived {numloc} locations, saved {saved} locations.".format(numloc=len(features), saved=saved))
 
-    def save_observations(self):
-        response =  urllib.request.urlopen(OBSERATIONS_URL) 
-        lines = [l.decode('utf-8') for l in response.readlines()]     
+    def save_observations(self):         
         
         locations = {}
-        #Table used to lookup location relation
+        #Table used to lookup location relations
         for location in Location.objects.all():
             locations[location.name] = location
        
         string_data = requests.get(OBSERATIONS_URL).content
         # TODO check the latest time and only newest
-        data = pd.read_csv(io.StringIO(string_data.decode('utf-8')))[57600:]
+        import_state = ImportState.load()
+        rows_imported = import_state.rows_imported
+        #   rows_imported = 8460
+        data = pd.read_csv(io.StringIO(string_data.decode('utf-8')))[rows_imported:]
+        length = len(data)
+        import_state.rows_imported = rows_imported + length
+        
+        #breakpoint()
+        #NOTE, try to get rid o pndas dependency
+        #  with open(addressFilePath,'r', encoding='utf-8') as csvfile:
+        #   csvreader = csv.reader(csvfile)
+        #    for x in csvreader: 
+        
         for index, row in data.iterrows():
-            time = row["aika"] # 2021-08-23 00:00:00
+            print(".", end = "")
+            try:
+                time = dateutil.parser.parse(row["aika"]) # 2021-08-23 00:00:00
+                time = make_aware(time)
+            except (pytz.exceptions.NonExistentTimeError, pytz.exceptions.AmbiguousTimeError):
+                continue
             #Iterate trough columns and store a observation for every
             #Note the first col is the "aika" and is discarded, the rest are observation values
             for c in range(1,len(self.columns)):
@@ -77,12 +94,16 @@ class Command(BaseCommand):
                 observation.location = locations[name]
                 value = row[c]
                 if math.isnan(value):
-                    observation.value = None
-                else:
-                    observation.value = row[c]
+                    value = None
+                
+                #observation.value_+type.lower()=value
+                observation.value = value
                 observation.time = time
                 observation.type = type
                 observation.save()
+        import_state.save()
+
+
     def handle(self, *args, **options):
         logger.info("Retrieving stations...")
         self.save_locations()
