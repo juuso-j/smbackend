@@ -11,10 +11,12 @@ from django.utils.timezone import make_aware
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib.gis.geos import Point
 
-from eco_counter.models import Location, Day,Week, ImportState
+from eco_counter.models import Location, Day,Week, Month, ImportState
 
 LOCATIONS_URL = "https://dev.turku.fi/datasets/ecocounter/liikennelaskimet.geojson"
 OBSERATIONS_URL = "https://dev.turku.fi/datasets/ecocounter/2020/counters-15min.csv"
+GK25_SRID = 3879
+
 #UTC_TIMEZONE = pytz.timezone("UTC")
 logger = logging.getLogger(__name__)
 
@@ -40,7 +42,7 @@ class Command(BaseCommand):
                 location.name = name
                 lon = feature["geometry"]["coordinates"][0]
                 lat = feature["geometry"]["coordinates"][1]
-                point = Point(lon, lat)
+                point = Point(lat, lon)
                 location.geom = point
                 location.save()
                 saved += 1
@@ -74,30 +76,40 @@ class Command(BaseCommand):
         #breakpoint()       
         #for index, row in data.iterrows():
         values = {}
+        day_values ={}
         #Temporary store day for every location
         days = {}
+        weeks = {}
+        # NOTE TODO this must be done for every year
+        for location in locations:
+            weeks[location] = {}
+        
         #TODO, current Week and Month
+        week_number = None
+        year = None
+
         for index, row in enumerate(csvreader):
             print(" . " + str(index), end = "")
             try:
                 time = dateutil.parser.parse(row["aika"]) # 2021-08-23 00:00:00
                 time = make_aware(time)
             except (pytz.exceptions.NonExistentTimeError, pytz.exceptions.AmbiguousTimeError):
-                continue
-            
-            
-            #Iterate trough columns and store a observation for every
-            #Note the first col is the "aika" and is discarded, the rest are observation values
-            
-            #Build dict with locations as keys and values dicts with type as key                 
+                continue                    
                
             #for c in range(1,len(self.columns)):
             # Build the values dict by iterating all cols in row.
-            # Values dict store the row data in structured form. 
+            # Values dict store the row data in a structured form. 
             # values dict is of type:
             # values[location][type] = value, e.g. values["TeatteriSilta"]["PK"] = 6
             for col in row:
+                #Note the first col is the "aika" and is discarded, the rest are observated values
                 if col == "aika":
+                    year, week_number, day_number = datetime.date(time).isocalendar()
+                    for location in locations:
+                        if week_number not in weeks[location]:
+                            week = Week.objects.create(location=locations[location], year=year, week_number=week_number)
+                            weeks[location][week_number] = week
+                    #breakpoint()
                     continue
                 tmp = col.split()
                 type = ""
@@ -129,19 +141,23 @@ class Command(BaseCommand):
                 else:
                     values[name][type] = value
                
-            # Create day every 24*4 iteration
+            # Create day every 24*4  (24h*15min) iteration
             if index % (24*4) == 0:
                 print("DAYS mod 24*4")            
-                
+                # TODO CREATE WEEKDAY
+                # if days not empty
+                #for location in locations:
+                # sum sum(obj.values_pk)
+                breakpoint()
                 days = {}
-                for loc in locations:
-                    day = Day.objects.create(date=time.date(), location=locations[loc])                  
+                for location in locations:
+                    day = Day.objects.create(date=time.date(), location=locations[location], week=weeks[location][week_number])                   
                     #breakpoint()
                     print("created: ", day, end="")
-                    days[loc] = day
+                    days[location] = day
                 #breakpoint()
             
-            #Add hour data every 4 iteration, sample rate is 15min
+            #Adds hour data every fourth iteration, sample rate is 15min
             if index % 4 == 0:
                 for loc in values:                   
                     day = days[loc]
