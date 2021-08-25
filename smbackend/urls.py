@@ -12,12 +12,13 @@ from services.api import all_views as services_views
 from services.unit_redirect_viewset import UnitRedirectViewSet
 from shortcutter import urls as shortcutter_urls
 from digitraffic.views import DigiTrafficViewSet
+from eco_counter.views import DayViewSet
 admin.site.site_header = _("Servicemap administration")
 admin.site.index_title = _("Application management")
 
 router = routers.DefaultRouter()
 router.register(r'digitraffic', DigiTrafficViewSet, basename='digitraffic')
-
+router.register(r'eco_counter', DayViewSet, basename="eco_counter")
 registered_api_views = set()
 
 for view in services_views + munigeo_views + observations_views:
