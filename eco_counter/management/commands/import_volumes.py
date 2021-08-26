@@ -4,6 +4,7 @@ import pytz
 import csv
 import math
 import io
+import itertools
 import pandas as pd 
 import dateutil.parser
 from datetime import datetime
@@ -11,7 +12,7 @@ from django.utils.timezone import make_aware
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib.gis.geos import Point
 
-from eco_counter.models import Location, Day,Week, Month, ImportState
+from eco_counter.models import Location, Day,Week, WeekDay, Month, ImportState
 
 LOCATIONS_URL = "https://dev.turku.fi/datasets/ecocounter/liikennelaskimet.geojson"
 OBSERATIONS_URL = "https://dev.turku.fi/datasets/ecocounter/2020/counters-15min.csv"
@@ -22,14 +23,14 @@ logger = logging.getLogger(__name__)
 
 class Command(BaseCommand):
     help = "Imports Turku Traffic Volumes"
-    # columns = ['aika', 'Teatterisilta PK', 'Teatterisilta JP', 'Auransilta JP',
-    #    'Auransilta JK', 'Piispanristi P PK', 'Teatterisilta PP',
-    #    'Auransilta AK', 'Kirjastosilta PK', 'Piispanristi E PK',
-    #    'Auransilta PP', 'Kirjastosilta JP', 'Raisiontie PP',
-    #    'Teatteri ranta PK', 'Kirjastosilta JK', 'Teatteri ranta PP',
-    #    'Teatteri ranta JP', 'Auransilta PK', 'Teatterisilta JK',
-    #    'Piispanristi E PP', 'Raisiontie PK', 'Kirjastosilta PP',
-    #    'Auransilta AP', 'Teatteri ranta JK', 'Piispanristi P PP']
+    columns = ['aika', 'Teatterisilta PK', 'Teatterisilta JP', 'Auransilta JP',
+       'Auransilta JK', 'Piispanristi P PK', 'Teatterisilta PP',
+       'Auransilta AK', 'Kirjastosilta PK', 'Piispanristi E PK',
+       'Auransilta PP', 'Kirjastosilta JP', 'Raisiontie PP',
+       'Teatteri ranta PK', 'Kirjastosilta JK', 'Teatteri ranta PP',
+       'Teatteri ranta JP', 'Auransilta PK', 'Teatterisilta JK',
+       'Piispanristi E PP', 'Raisiontie PK', 'Kirjastosilta PP',
+       'Auransilta AP', 'Teatteri ranta JK', 'Piispanristi P PP']
 
     def save_locations(self):
         response_json = requests.get(LOCATIONS_URL).json()
@@ -71,6 +72,10 @@ class Command(BaseCommand):
         req = requests.get(OBSERATIONS_URL)
         buff = io.StringIO(req.text)
         #len(list(csvreader))
+        #iterator = itertools.islice(buff, 57000, None)
+        #csvreader = csv.DictReader(buff, next(iterator).split(), delimiter=',')
+        # for i in range(57000):
+        #     buff.next()
         csvreader = csv.DictReader(buff)
         
         #breakpoint()       
@@ -87,8 +92,10 @@ class Command(BaseCommand):
         #TODO, current Week and Month
         week_number = None
         year = None
-
+        # for index, row in data.iteritems():
+        #     breakpoint()
         for index, row in enumerate(csvreader):
+            #breakpoint()
             print(" . " + str(index), end = "")
             try:
                 time = dateutil.parser.parse(row["aika"]) # 2021-08-23 00:00:00
@@ -146,9 +153,23 @@ class Command(BaseCommand):
                 print("DAYS mod 24*4")            
                 # TODO CREATE WEEKDAY
                 # if days not empty
-                #for location in locations:
-                # sum sum(obj.values_pk)
-                breakpoint()
+                # Store the WeekDay object that contains the daily data
+                if days:
+                    for location in locations:
+                        tmp_day = days[location]
+                        week_day = WeekDay.objects.create(location=locations[location],date=tmp_day.date, week=tmp_day.week)
+                        week_day.values_ak = sum(tmp_day.values_ak)
+                        week_day.values_ap = sum(tmp_day.values_ap)
+                        week_day.values_at = sum(tmp_day.values_at)
+                        week_day.values_pk = sum(tmp_day.values_pk)
+                        week_day.values_pp = sum(tmp_day.values_pp)
+                        week_day.values_pt = sum(tmp_day.values_pt)
+                        week_day.values_jk = sum(tmp_day.values_jk)
+                        week_day.values_jp = sum(tmp_day.values_jp)
+                        week_day.values_jt = sum(tmp_day.values_jt)
+                        week_day.save()
+
+                #breakpoint()
                 days = {}
                 for location in locations:
                     day = Day.objects.create(date=time.date(), location=locations[location], week=weeks[location][week_number])                   

@@ -7,6 +7,9 @@ app_name = "eco_counter"
 router = routers.SimpleRouter()
 router.register("days", views.DayViewSet, basename="day")
 router.register("locations", views.LocationViewSet, basename="location")
+router.register("week", views.WeekViewSet, basename="week")
+router.register("week_day", views.WeekDayViewSet, basename="week_day")
+
 
 urlpatterns = [
     path("", include(router.urls)),
