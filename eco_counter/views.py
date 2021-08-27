@@ -2,14 +2,16 @@ from django.shortcuts import render
 
 from rest_framework import viewsets
 from rest_framework.response import Response
-from .models import Day, Location, WeekData, WeekDay, Week
+from .models import Day, Location, WeekData, WeekDay, Week, Month, MonthData
 from .serializers import (
     DaySerializer,
     LocationSerializer,
+    MonthDataSerializer,
+    MonthSerializer,
     WeekDataSerializer,
     WeekDaySerializer, 
     WeekSerializer,
-    WeekDataSerializer
+    WeekDataSerializer,
 )
 
 
@@ -38,3 +40,14 @@ class WeekViewSet(viewsets.ModelViewSet):
 class WeekDataViewSet(viewsets.ModelViewSet):
     queryset = WeekData.objects.all().order_by("id")
     serializer_class = WeekDataSerializer
+
+
+class MonthViewSet(viewsets.ModelViewSet):
+    queryset = Month.objects.all()
+    serializer_class = MonthSerializer
+
+
+class MonthDataViewSet(viewsets.ModelViewSet):
+    queryset = MonthData.objects.all()
+    serializer_class = MonthDataSerializer
+

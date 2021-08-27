@@ -29,12 +29,14 @@ GK25_SRID = 3879
 
 #UTC_TIMEZONE = pytz.timezone("UTC")
 logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
+
 
 class Command(BaseCommand):
     help = "Imports Turku Traffic Volumes"
     
     # List used to lookup name and type
-    # Output of pandas dataframe, i.e. data.keys()
+    # Output of pandas dataframe, i.e. csv_data.keys()
     columns = ['aika', 'Teatterisilta PK', 'Teatterisilta JP', 'Auransilta JP',
        'Auransilta JK', 'Piispanristi P PK', 'Teatterisilta PP',
        'Auransilta AK', 'Kirjastosilta PK', 'Piispanristi E PK',
@@ -51,6 +53,10 @@ class Command(BaseCommand):
         Week.objects.all().delete()
         Month.objects.all().delete()
         MonthData.objects.all().delete()
+        Year.objects.all().delete()
+        YearData.objects.all().delete()
+        #Location.objects.all().delete()
+        ImportState.objects.all().delete()
 
     def save_locations(self):
         response_json = requests.get(LOCATIONS_URL).json()
@@ -70,13 +76,27 @@ class Command(BaseCommand):
 
         logger.info("Retrived {numloc} locations, saved {saved} locations.".format(numloc=len(features), saved=saved))
 
-    def get_dataframe(self, start_pos):
+    def get_dataframe(self):
         string_data = requests.get(OBSERATIONS_URL).content
-        data = pd.read_csv(io.StringIO(string_data.decode('utf-8')))[start_pos:]
-        return data
+        csv_data = pd.read_csv(io.StringIO(string_data.decode('utf-8')))
+        return csv_data
+
+    def calc_and_store_cum_data(self, src_obj, dst_obj):
+        #breakpoint()
+        for src in src_obj:
+            dst_obj.value_ak += src.value_ak
+            dst_obj.value_ap += src.value_ap
+            dst_obj.value_at += src.value_at
+            dst_obj.value_pk += src.value_pk
+            dst_obj.value_pp += src.value_pp
+            dst_obj.value_pt += src.value_pt
+            dst_obj.value_jk += src.value_jk
+            dst_obj.value_jp += src.value_jp
+            dst_obj.value_jt += src.value_jt 
+        dst_obj.save()
         
     def save_observations(self):         
-        self.delete_tables()
+        
         locations = {}
         #Dict used to lookup location relations
         for location in Location.objects.all():
@@ -89,87 +109,97 @@ class Command(BaseCommand):
         #Temporarly store references to week instances for every location(key) currently populating
         current_weeks = {}
         current_months = {}
+        current_years = {}        
       
-        week_number = None
-        prev_week_number = None
-        month_number = None
-        prev_month_number = None
-        year = None
 
-        # TODO check the latest time and only newest
         import_state = ImportState.load()
         rows_imported = import_state.rows_imported
-        # TODO TODO fetch CURRENT YEARs current_months and week instances from state
-        # NOTE, hack to override state
-        rows_imported = 0
-        data = self.get_dataframe(rows_imported)
-        self.columns = data.keys()
-        length = len(data)
-        import_state.rows_imported = rows_imported + length              
-         
-        for index, row in data.iterrows():
+        year_number = import_state.year_number 
+        month_number = import_state.month_number
+        week_number = import_state.week_number      
+        prev_year_number = year_number
+        prev_month_number = month_number
+        prev_week_number = week_number
+        prev_year_number = None
+        prev_month_number = None
+        prev_week_number = None
+        
+        csv_data = self.get_dataframe()
+        prev_time = "{year}-{month}-1 00:00:00".format(year=import_state.year_number, month=import_state.month_number)
+        prev_time = dateutil.parser.parse(prev_time)
+        start_index = csv_data.index[csv_data["aika"]==str(prev_time)].values[0]
+        print("Start index:", start_index)
+        csv_data = csv_data[start_index:]
+        # TODO check if objects exists
+        if False:
+            for location in locations:
+                print("location", location)
+                breakpoint()
+            
+                if Year.objects.filter(location=locations[location], year_number=year_number).exists():
+                    current_years[location] = Year.objects.get(location=locations[location], year_number=year_number)
+                else:
+                    current_years[location] = Year.objects.create(location=locations[location], year_number=year_number)
+                if Month.objects.filter(location=locations[location], year=current_years[location], month_number=month_number).exists():
+                    current_months[location] = Month.objects.get(location=locations[location], year=current_years[location], month_number=month_number)
+                else:
+                    current_months[location] = Month.objects.create(location=locations[location], year=current_years[location], month_number=month_number)
+                Week.objects.filter(location=locations[location], year=current_years[location], month=current_months[location]).delete()
+                
+        self.columns = csv_data.keys()         
+        
+        for index, row in csv_data.iterrows():
             print(" . " + str(index), end = "")
             try:
                 time = dateutil.parser.parse(row["aika"]) # 2021-08-23 00:00:00
                 time = make_aware(time)
             except (pytz.exceptions.NonExistentTimeError, pytz.exceptions.AmbiguousTimeError):
                 continue                    
-            
-            year, week_number, day_number = datetime.date(time).isocalendar()
+            year_number, week_number, day_number = datetime.date(time).isocalendar()
             month_number = datetime.date(time).month
+            if prev_year_number != year_number or not current_years:
+                if prev_year_number:
+                    for location in locations:
+                        year = current_years[location]
+                        year_data = YearData.objects.create(year=year, location=locations[location])
+                        self.calc_and_store_cum_data(year.month_data.all(), year_data)
+                       
+                for location in locations:
+                    year = Year.objects.create(year_number=year_number, location=locations[location])
+                    current_years[location] = year
+                prev_year_number = year_number
 
             if prev_month_number != month_number or not current_weeks:
-                if prev_month_number != month_number and prev_month_number:
+                if  prev_month_number:
                     for location in locations:
                         month = current_months[location]
-                        month_data = MonthData.objects.create(month=month, location=locations[location])
-                        #breakpoint()
-                        for mo in month.week_data.all():
-                            month_data.value_ak += mo.value_ak
-                            month_data.value_ap += mo.value_ap
-                            month_data.value_at += mo.value_at
-                            month_data.value_pk += mo.value_pk
-                            month_data.value_pp += mo.value_pp
-                            month_data.value_pt += mo.value_pt
-                            month_data.value_jk += mo.value_jk
-                            month_data.value_jp += mo.value_jp
-                            month_data.value_jt += mo.value_jt                           
-                        month_data.save()
-                #         breakpoint()
-                #         pass
+                        month_data = MonthData.objects.create(month=month, location=locations[location], year=current_years[location])
+                        self.calc_and_store_cum_data(month.week_data.all(), month_data)
+
                 for location in locations:
-                    month = Month.objects.create(location=locations[location], year=year, month_number=month_number)
+                    month = Month.objects.create(location=locations[location], year=current_years[location], month_number=month_number)
                     current_months[location] = month
                 
                 prev_month_number = month_number
 
 
             if prev_week_number != week_number or not current_weeks:                
-                #if week changed store weekly data
-                if prev_week_number != week_number and prev_week_number:
+                #if week changed store weekly csv_data
+                if prev_week_number:
                     for location in locations:
                         week = current_weeks[location]
                         week_data = WeekData.objects.create(week=week, location=locations[location], month=current_months[location])
-                        for we in week.week_days.all():
-                            week_data.value_ak += we.value_ak
-                            week_data.value_ap += we.value_ap
-                            week_data.value_at += we.value_at
-                            week_data.value_pk += we.value_pk
-                            week_data.value_pp += we.value_pp
-                            week_data.value_pt += we.value_pt
-                            week_data.value_jk += we.value_jk
-                            week_data.value_jp += we.value_jp
-                            week_data.value_jt += we.value_jt                           
-                        week_data.save()
+                        self.calc_and_store_cum_data(week.week_days.all(), week_data)
+
                 for location in locations:
-                    week = Week.objects.create(location=locations[location], year=year, week_number=week_number)
+                    week = Week.objects.create(location=locations[location], month=current_months[location], week_number=week_number, year=current_years[location])
                     current_weeks[location] = week
                 
                 prev_week_number = week_number
                 #breakpoint()
 
             # Build the current_values dict by iterating all cols in row.
-            # current_Values dict store the row data in a structured form. 
+            # current_values dict store the rows csv_data in a structured form. 
             # current_values dict is of type:
             # current_values[location][type] = value, e.g. current_values["TeatteriSilta"]["PK"] = 6
             #for col in row:
@@ -207,7 +237,7 @@ class Command(BaseCommand):
             if index % (24*4) == 0:
                 print("DAYS mod 24*4")           
                
-                # Store the WeekDay object that contains the daily data(24 hour data samples)
+                # Store the WeekDay object that contains the daily csv_data(24 hour csv_data samples)
                 if current_days:
                     for location in locations:
                         tmp_day = current_days[location]
@@ -229,7 +259,7 @@ class Command(BaseCommand):
                     current_days[location] = day
                 #breakpoint()
             
-            #Adds hour data every fourth iteration, sample rate is 15min
+            #Adds hour csv_data every fourth iteration, sample rate is 15min
             if index % 4 == 0:
                 for loc in current_values:                   
                     day = current_days[loc]
@@ -261,7 +291,12 @@ class Command(BaseCommand):
                 #breakpoint()     
                 # Clear current_values after storage
                 current_values = {}
-              
+        # TODO calc the current year, mont and week data....
+             
+        import_state.year_number = year_number
+        import_state.month_number = month_number
+        import_state.week_number = week_number       
+        import_state.rows_imported = rows_imported + len(csv_data)      
         
         import_state.save()
 
@@ -270,6 +305,7 @@ class Command(BaseCommand):
         logger.info("Retrieving stations...")
         self.save_locations()
         logger.info("Retrieving observations...")
+        #self.delete_tables()
         self.save_observations()
       
 

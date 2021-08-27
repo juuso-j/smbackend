@@ -4,7 +4,9 @@ from .models import (
     Location, 
     Week, 
     WeekDay, 
-    WeekData)
+    WeekData,
+    Month,
+    MonthData)
 
 class DaySerializer(serializers.ModelSerializer):
     
@@ -53,6 +55,7 @@ class WeekBaseSerializer(serializers.ModelSerializer):
             "year",
         ]
 
+
 class WeekSerializer(WeekBaseSerializer):
     week_days = WeekDaySerializer(many=True, read_only=True)
     num_days = serializers.SerializerMethodField(read_only=True)
@@ -65,7 +68,6 @@ class WeekSerializer(WeekBaseSerializer):
     
     def get_num_days(self, obj):
         return len(obj.week_days.values_list())
-
 
 
 
@@ -91,3 +93,33 @@ class WeekDataSerializer(serializers.ModelSerializer):
             "value_jt",          
             
         ]
+
+    
+class MonthSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Month
+        fields = "__all__"
+
+
+class MonthDataSerializer(serializers.ModelSerializer):
+    month_info = MonthSerializer(source="month")
+    class Meta:
+        
+        model = MonthData
+        fields = [
+            "id",
+            "location",
+            "month_info",
+            "value_ak",
+            "value_ap",
+            "value_at",
+            "value_pk",
+            "value_pp",
+            "value_pt",
+            "value_jk",
+            "value_jp",
+            "value_jt",          
+            
+        ]
+
