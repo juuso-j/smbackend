@@ -96,26 +96,27 @@ class Command(BaseCommand):
     def create_and_save_year_data(self, stations, current_years):
         for station in stations:
             year = current_years[station]
-            year_data = YearData.objects.create(year=year, station=stations[station])
+            year_data = YearData.objects.update_or_create(year=year, station=stations[station])[0]
             self.calc_and_save_cum_data(year.month_data.all(), year_data)
 
     def create_and_save_month_data(self, stations, current_months, current_years):                 
         for station in stations:
             month = current_months[station]
-            month_data = MonthData.objects.create(month=month, station=stations[station], year=current_years[station])
+            month_data = MonthData.objects.update_or_create(month=month,\
+                 station=stations[station], year=current_years[station])[0]
             self.calc_and_save_cum_data(month.week_data.all(), month_data)
 
     def create_and_save_week_data(self, stations, current_weeks, current_months):
         for station in stations:
             week = current_weeks[station]
-            week_data = WeekData.objects.create(week=week, station=stations[station], month=current_months[station])
+            week_data = WeekData.objects.update_or_create(week=week, station=stations[station], month=current_months[station])[0]
             self.calc_and_save_cum_data(week.week_days.all(), week_data)
 
     def create_and_save_week_day(self, stations, current_days,current_day_number):
         for station in stations:
             current_day = current_days[station]
-            week_day = WeekDay.objects.create(station=stations[station], \
-                date=current_day.date, week=current_day.week, day_number=current_day_number)                       
+            week_day = WeekDay.objects.update_or_create(station=stations[station], \
+                date=current_day.date, week=current_day.week, day_number=current_day_number)[0]                       
             self.save_and_calc_week_day(current_day, week_day)
     
 
@@ -197,11 +198,13 @@ class Command(BaseCommand):
         csv_data = csv_data[start_index:]
        
         for station in stations:
-            current_years[station], created = Year.objects.get_or_create(station=stations[station], year_number=current_year_number)           
-            current_months[station], created = Month.objects.get_or_create(station=stations[station], year=current_years[station],\
-                 month_number=current_month_number)
-            #All weeks from the current_month are delete beacous they are repopulated
-            Week.objects.filter(station=stations[station], year=current_years[station], month=current_months[station]).delete()
+            current_years[station] = Year.objects.get_or_create(station=stations[station], \
+                year_number=current_year_number)[0]           
+            current_months[station] = Month.objects.get_or_create(station=stations[station], \
+                year=current_years[station], month_number=current_month_number)[0]
+            #All weeks from the current_month are delete thus they are repopulated
+            Week.objects.filter(station=stations[station], year=current_years[station],\
+                 month=current_months[station]).delete()
             
         current_week_number = start_time.isocalendar()[1]         
         self.columns = csv_data.keys()         
@@ -292,8 +295,17 @@ class Command(BaseCommand):
                 self.save_day(current_hours, current_days)                
                 # Clear current_hours after storage, to get data for every hour
                 current_hours = {}
+        
+        
         # TODO calc the current year, mont and week data....
-             
+        self.save_day(current_hours, current_days)  
+        self.create_and_save_week_day(stations, current_days,current_day_number)                                
+        
+        self.create_and_save_week_data(stations, current_weeks, current_months)                 
+        self.create_and_save_month_data(stations, current_months, current_years)                 
+        self.create_and_save_year_data(stations, current_years)                       
+        
+
         import_state.current_year_number = current_year_number
         import_state.current_month_number = current_month_number
         import_state.rows_imported = rows_imported + len(csv_data)     
