@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import (
     Day, 
-    Location, 
+    Station, 
     Week, 
     WeekDay, 
     WeekData,
@@ -15,13 +15,13 @@ class DaySerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class LocationSerializer(serializers.ModelSerializer):
+class StationSerializer(serializers.ModelSerializer):
 
     lat = serializers.SerializerMethodField(read_only=True)
     lon = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
-        model = Location
+        model = Station
         fields = [
             "id",
             "name",

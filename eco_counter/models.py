@@ -31,7 +31,7 @@ class ImportState(SingletonModel):
     current_month_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)], default=1)
 
 
-class Location(models.Model):    
+class Station(models.Model):    
     name = models.CharField(max_length=30)
     geom = models.PointField()
     
@@ -55,13 +55,13 @@ class CounterData(models.Model):
 
 
 class Year(models.Model):
-    location = models.ForeignKey("Location", on_delete=models.CASCADE,\
+    station = models.ForeignKey("Station", on_delete=models.CASCADE,\
         related_name="years", null=True)
     year_number = models.PositiveSmallIntegerField(choices=YEAR_CHOICES, default=datetime.now().year)
     
 
 class Month(models.Model):
-    location = models.ForeignKey("Location", on_delete=models.CASCADE,\
+    station = models.ForeignKey("Station", on_delete=models.CASCADE,\
         related_name="months", null=True)
     #year = models.PositiveSmallIntegerField(choices=YEAR_CHOICES, default=datetime.now().year)
     year = models.ForeignKey("Year", on_delete=models.CASCADE, related_name="months")
@@ -69,7 +69,7 @@ class Month(models.Model):
 
 
 class Week(models.Model):
-    location = models.ForeignKey("Location", on_delete=models.CASCADE,\
+    station = models.ForeignKey("Station", on_delete=models.CASCADE,\
         related_name="weeks")
     week_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(53)])
     year = models.ForeignKey("Year", on_delete=models.CASCADE, related_name="weeks", null=True)
@@ -77,27 +77,27 @@ class Week(models.Model):
   
 
 class YearData(CounterData):
-    location = models.ForeignKey("Location", on_delete=models.CASCADE,\
+    station = models.ForeignKey("Station", on_delete=models.CASCADE,\
         related_name="year_data", null=True)    
     year = models.ForeignKey("Year", on_delete=models.CASCADE, related_name="year_data", null=True)
 
 
 class MonthData(CounterData):
-    location = models.ForeignKey("Location", on_delete=models.CASCADE,\
+    station = models.ForeignKey("Station", on_delete=models.CASCADE,\
         related_name="month_data", null=True)    
     month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="month_data", null=True)
     year = models.ForeignKey("Year", on_delete=models.CASCADE, related_name="month_data", null=True)
 
 
 class WeekData(CounterData):
-    location = models.ForeignKey("Location", on_delete=models.CASCADE,\
+    station = models.ForeignKey("Station", on_delete=models.CASCADE,\
         related_name="week_data", null=True)    
     week = models.ForeignKey("Week", on_delete=models.CASCADE, related_name="week_data", null=True)
     month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="week_data", null=True)
 
 
 class WeekDay(CounterData):
-    location = models.ForeignKey("Location", on_delete=models.CASCADE,\
+    station = models.ForeignKey("Station", on_delete=models.CASCADE,\
         related_name="weekdays", null=True)      
     week = models.ForeignKey("Week", on_delete=models.CASCADE, related_name="week_days", null=True)
     date = models.DateField(default=now)
@@ -105,7 +105,7 @@ class WeekDay(CounterData):
  
 
 class Day(models.Model):    
-    location = models.ForeignKey("Location", on_delete=models.CASCADE,\
+    station = models.ForeignKey("Station", on_delete=models.CASCADE,\
         related_name="days")
     week = models.ForeignKey("Week", on_delete=models.CASCADE, related_name="days", null=True)
     month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="days", null=True)

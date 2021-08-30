@@ -2,10 +2,10 @@ from django.shortcuts import render
 
 from rest_framework import viewsets
 from rest_framework.response import Response
-from .models import Day, Location, WeekData, WeekDay, Week, Month, MonthData
+from .models import Station, Day, WeekData, WeekDay, Week, Month, MonthData
 from .serializers import (
     DaySerializer,
-    LocationSerializer,
+    StationSerializer,
     MonthDataSerializer,
     MonthSerializer,
     WeekDataSerializer,
@@ -21,9 +21,9 @@ class DayViewSet(viewsets.ModelViewSet):
     #endpoint could be, get_day(loc_id, date)
 
 
-class LocationViewSet(viewsets.ModelViewSet):
-    queryset = Location.objects.all()
-    serializer_class = LocationSerializer
+class StationViewSet(viewsets.ModelViewSet):
+    queryset = Station.objects.all()
+    serializer_class = StationSerializer
 
 
 class WeekDayViewSet(viewsets.ModelViewSet):
