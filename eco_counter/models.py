@@ -26,16 +26,10 @@ class SingletonModel(models.Model):
 
 
 class ImportState(SingletonModel):
-    # default is set to 1, 0
     rows_imported = models.PositiveIntegerField(default=0)
+    current_year_number = models.PositiveSmallIntegerField(choices=YEAR_CHOICES, default=START_YEAR)
+    current_month_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)], default=1)
 
-    year_number = models.PositiveSmallIntegerField(choices=YEAR_CHOICES, default=START_YEAR)
-    month_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)], default=1)
-    week_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(53)], default=1)
-    # years = ArrayField(models.ForeignKey("Year", on_delete=models.SET_NULL, null=True))
-    # months = ArrayField(models.ForeignKey("month", on_delete=models.SET_NULL, null=True))
-    # weeks = ArrayField(models.ForeignKey("week", on_delete=models.SET_NULL, null=True))
-    # days = ArrayField(models.ForeignKey("day", on_delete=models.SET_NULL, null=True))
 
 class Location(models.Model):    
     name = models.CharField(max_length=30)
@@ -59,6 +53,7 @@ class CounterData(models.Model):
     class Meta:
         abstract = True
 
+
 class Year(models.Model):
     location = models.ForeignKey("Location", on_delete=models.CASCADE,\
         related_name="years", null=True)
@@ -79,9 +74,7 @@ class Week(models.Model):
     week_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(53)])
     year = models.ForeignKey("Year", on_delete=models.CASCADE, related_name="weeks", null=True)
     month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="weeks", null=True)
-   
-    #year = models.PositiveSmallIntegerField(choices=YEAR_CHOICES, default=datetime.now().year)
-
+  
 
 class YearData(CounterData):
     location = models.ForeignKey("Location", on_delete=models.CASCADE,\
@@ -108,15 +101,16 @@ class WeekDay(CounterData):
         related_name="weekdays", null=True)      
     week = models.ForeignKey("Week", on_delete=models.CASCADE, related_name="week_days", null=True)
     date = models.DateField(default=now)
+    day_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(7)], default=1)
  
 
-class Day(models.Model):
-    
+class Day(models.Model):    
     location = models.ForeignKey("Location", on_delete=models.CASCADE,\
         related_name="days")
     week = models.ForeignKey("Week", on_delete=models.CASCADE, related_name="days", null=True)
     month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="days", null=True)
     date = models.DateField(default=now)
+    day_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(7)], default=1)
     values_ak = ArrayField(models.PositiveSmallIntegerField(), default=list)
     values_ap = ArrayField(models.PositiveSmallIntegerField(), default=list)
     values_at = ArrayField(models.PositiveSmallIntegerField(), default=list)    

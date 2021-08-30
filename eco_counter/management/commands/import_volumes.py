@@ -82,7 +82,6 @@ class Command(BaseCommand):
         return csv_data
 
     def calc_and_store_cum_data(self, src_obj, dst_obj):
-        #breakpoint()
         for src in src_obj:
             dst_obj.value_ak += src.value_ak
             dst_obj.value_ap += src.value_ap
@@ -94,7 +93,19 @@ class Command(BaseCommand):
             dst_obj.value_jp += src.value_jp
             dst_obj.value_jt += src.value_jt 
         dst_obj.save()
-        
+         
+    def save_and_calc_week_day(self, current_day, week_day):
+        week_day.value_ak = sum(current_day.values_ak)
+        week_day.value_ap = sum(current_day.values_ap)
+        week_day.value_at = sum(current_day.values_at)
+        week_day.value_pk = sum(current_day.values_pk)
+        week_day.value_pp = sum(current_day.values_pp)
+        week_day.value_pt = sum(current_day.values_pt)
+        week_day.value_jk = sum(current_day.values_jk)
+        week_day.value_jp = sum(current_day.values_jp)
+        week_day.value_jt = sum(current_day.values_jt)
+        week_day.save()
+    
     def save_observations(self):         
         
         locations = {}
@@ -114,38 +125,43 @@ class Command(BaseCommand):
 
         import_state = ImportState.load()
         rows_imported = import_state.rows_imported
-        year_number = import_state.year_number 
-        month_number = import_state.month_number
-        week_number = import_state.week_number      
-        prev_year_number = year_number
-        prev_month_number = month_number
-        prev_week_number = week_number
-        prev_year_number = None
-        prev_month_number = None
+        current_year_number = import_state.current_year_number 
+        current_month_number = import_state.current_month_number
+        # week number is derived from the month
+        current_week_number = None
+        current_day_number = None    
+        prev_year_number = current_year_number
+        prev_month_number = current_month_number
         prev_week_number = None
         
         csv_data = self.get_dataframe()
-        prev_time = "{year}-{month}-1 00:00:00".format(year=import_state.year_number, month=import_state.month_number)
-        prev_time = dateutil.parser.parse(prev_time)
-        start_index = csv_data.index[csv_data["aika"]==str(prev_time)].values[0]
+        start_time = "{year}-{month}-1 00:00:00".format(year=import_state.current_year_number, month=import_state.current_month_number)
+        start_time = dateutil.parser.parse(start_time)
+        start_index = csv_data.index[csv_data["aika"]==str(start_time)].values[0]
         print("Start index:", start_index)
         csv_data = csv_data[start_index:]
-        # TODO check if objects exists
-        if False:
+       
+        if True:
             for location in locations:
                 print("location", location)
-                breakpoint()
-            
-                if Year.objects.filter(location=locations[location], year_number=year_number).exists():
-                    current_years[location] = Year.objects.get(location=locations[location], year_number=year_number)
-                else:
-                    current_years[location] = Year.objects.create(location=locations[location], year_number=year_number)
-                if Month.objects.filter(location=locations[location], year=current_years[location], month_number=month_number).exists():
-                    current_months[location] = Month.objects.get(location=locations[location], year=current_years[location], month_number=month_number)
-                else:
-                    current_months[location] = Month.objects.create(location=locations[location], year=current_years[location], month_number=month_number)
+                current_years[location], created = Year.objects.get_or_create(location=locations[location], year_number=current_year_number)
+                # if Year.objects.filter(location=locations[location], current_year_number=current_year_number).exists():
+                #     print("Year exists")
+                #     current_years[location] = Year.objects.get(location=locations[location], current_year_number=current_year_number)
+                # else:
+                #     current_years[location] = Year.objects.create(location=locations[location], current_year_number=current_year_number)
+                current_months[location], created = Month.objects.get_or_create(location=locations[location], year=current_years[location], month_number=current_month_number)
+                
+                # if Month.objects.filter(location=locations[location], year=current_years[location], current_month_number=current_month_number).exists():
+                #     print("Month exists")
+                #     current_months[location] = Month.objects.get(location=locations[location], year=current_years[location], current_month_number=current_month_number)
+                # else:
+                #     current_months[location] = Month.objects.create(location=locations[location], year=current_years[location], current_month_number=current_month_number)
+                
                 Week.objects.filter(location=locations[location], year=current_years[location], month=current_months[location]).delete()
                 
+            current_week_number = start_time.isocalendar()[1]
+            #prev_week_number = current_week_number
         self.columns = csv_data.keys()         
         
         for index, row in csv_data.iterrows():
@@ -153,37 +169,40 @@ class Command(BaseCommand):
             try:
                 time = dateutil.parser.parse(row["aika"]) # 2021-08-23 00:00:00
                 time = make_aware(time)
-            except (pytz.exceptions.NonExistentTimeError, pytz.exceptions.AmbiguousTimeError):
-                continue                    
-            year_number, week_number, day_number = datetime.date(time).isocalendar()
-            month_number = datetime.date(time).month
-            if prev_year_number != year_number or not current_years:
+            except (pytz.exceptions.NonExistentTimeError, pytz.exceptions.AmbiguousTimeError):                               
+                pass
+
+            current_year_number, current_week_number, current_day_number = datetime.date(time).isocalendar()
+            current_month_number = datetime.date(time).month
+            # Add new year table if year does exist for every location and add references to state(current_years)
+            if prev_year_number != current_year_number or not current_years:
+                # if we have a prev_year_number and it is not the current_year_number store data.
                 if prev_year_number:
                     for location in locations:
                         year = current_years[location]
                         year_data = YearData.objects.create(year=year, location=locations[location])
                         self.calc_and_store_cum_data(year.month_data.all(), year_data)
-                       
+                    #self.calc_and_save_year_data(location, current_year)   
                 for location in locations:
-                    year = Year.objects.create(year_number=year_number, location=locations[location])
+                    year = Year.objects.create(year_number=current_year_number, location=locations[location])
                     current_years[location] = year
-                prev_year_number = year_number
+                prev_year_number = current_year_number
 
-            if prev_month_number != month_number or not current_weeks:
-                if  prev_month_number:
+            if prev_month_number != current_month_number or not current_months:
+                if  prev_month_number:                    
                     for location in locations:
                         month = current_months[location]
                         month_data = MonthData.objects.create(month=month, location=locations[location], year=current_years[location])
                         self.calc_and_store_cum_data(month.week_data.all(), month_data)
 
                 for location in locations:
-                    month = Month.objects.create(location=locations[location], year=current_years[location], month_number=month_number)
+                    month = Month.objects.create(location=locations[location], year=current_years[location], month_number=current_month_number)
                     current_months[location] = month
                 
-                prev_month_number = month_number
+                prev_month_number = current_month_number
 
 
-            if prev_week_number != week_number or not current_weeks:                
+            if prev_week_number != current_week_number or not current_weeks:                
                 #if week changed store weekly csv_data
                 if prev_week_number:
                     for location in locations:
@@ -192,10 +211,10 @@ class Command(BaseCommand):
                         self.calc_and_store_cum_data(week.week_days.all(), week_data)
 
                 for location in locations:
-                    week = Week.objects.create(location=locations[location], month=current_months[location], week_number=week_number, year=current_years[location])
+                    week = Week.objects.create(location=locations[location], month=current_months[location], week_number=current_week_number, year=current_years[location])
                     current_weeks[location] = week
                 
-                prev_week_number = week_number
+                prev_week_number = current_week_number
                 #breakpoint()
 
             # Build the current_values dict by iterating all cols in row.
@@ -210,10 +229,10 @@ class Command(BaseCommand):
                 name = ""
                 for t in tmp:
                     #the type is always uppercase and has length of two
-                    if t.isupper() and len(t)==2:                        
+                    if t.isupper() and len(t) == 2:                        
                         type += t
                     else:
-                        if len(name)>0:
+                        if len(name) > 0:
                             name += " "+t
                         else:
                             name += t
@@ -222,9 +241,6 @@ class Command(BaseCommand):
                 if math.isnan(value):
                     value = 0
                
-                # # if math.isnan(value):
-                #     value = 0
-                
                 if name not in current_values:
                     current_values[name]={}
                 # if type exist in current_values, we add the new value to get the hourly sample
@@ -235,35 +251,27 @@ class Command(BaseCommand):
                
             # Create day every 24*4  (24h*15min) iteration
             if index % (24*4) == 0:
-                print("DAYS mod 24*4")           
-               
+                print("DAYS mod 24*4")          
+              
                 # Store the WeekDay object that contains the daily csv_data(24 hour csv_data samples)
                 if current_days:
                     for location in locations:
-                        tmp_day = current_days[location]
-                        week_day = WeekDay.objects.create(location=locations[location],date=tmp_day.date, week=tmp_day.week)
-                        week_day.value_ak = sum(tmp_day.values_ak)
-                        week_day.value_ap = sum(tmp_day.values_ap)
-                        week_day.value_at = sum(tmp_day.values_at)
-                        week_day.value_pk = sum(tmp_day.values_pk)
-                        week_day.value_pp = sum(tmp_day.values_pp)
-                        week_day.value_pt = sum(tmp_day.values_pt)
-                        week_day.value_jk = sum(tmp_day.values_jk)
-                        week_day.value_jp = sum(tmp_day.values_jp)
-                        week_day.value_jt = sum(tmp_day.values_jt)
-                        week_day.save()
-                        #breakpoint()
+                        current_day = current_days[location]
+                        week_day = WeekDay.objects.create(location=locations[location], \
+                            date=current_day.date, week=current_day.week, day_number=current_day_number)                       
+                        self.save_and_calc_week_day(current_day, week_day)
                 current_days = {}
+
                 for location in locations:
-                    day = Day.objects.create(date=time.date(), location=locations[location], week=current_weeks[location], month=current_months[location])                   
+                    day = Day.objects.create(date=time.date(), location=locations[location],\
+                         week=current_weeks[location], month=current_months[location], day_number=current_day_number)                   
                     current_days[location] = day
-                #breakpoint()
             
-            #Adds hour csv_data every fourth iteration, sample rate is 15min
+            #Adds data for an hour every fourth iteration, sample rate is 15min
             if index % 4 == 0:
                 for loc in current_values:                   
                     day = current_days[loc]
-                    #breakpoint()
+                    #TODO refactor to function
                     if "AK" and "AP" in current_values[loc]:
                         ak = current_values[loc]["AK"]
                         ap = current_values[loc]["AP"]
@@ -288,24 +296,33 @@ class Command(BaseCommand):
                         day.values_jp.append(jp)
                         day.values_jt.append(tot)  
                     day.save()
-                #breakpoint()     
-                # Clear current_values after storage
+                # Clear current_values after storage, to get data for every hour
                 current_values = {}
         # TODO calc the current year, mont and week data....
              
-        import_state.year_number = year_number
-        import_state.month_number = month_number
-        import_state.week_number = week_number       
-        import_state.rows_imported = rows_imported + len(csv_data)      
-        
+        import_state.current_year_number = current_year_number
+        import_state.current_month_number = current_month_number
+        import_state.rows_imported = rows_imported + len(csv_data)     
         import_state.save()
 
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--delete-tables",
+            action="store_true",
+            dest="delete-tables",
+            default=False,
+            help="Deletes tables before importing.",
+        )
 
     def handle(self, *args, **options):
         logger.info("Retrieving stations...")
+        
+        if options["delete-tables"]:
+            print("Deleting tables")
+            self.delete_tables()
+
         self.save_locations()
         logger.info("Retrieving observations...")
-        #self.delete_tables()
         self.save_observations()
       
 
