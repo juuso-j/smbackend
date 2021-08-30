@@ -80,7 +80,17 @@ class Command(BaseCommand):
         csv_data = pd.read_csv(io.StringIO(string_data.decode('utf-8')))
         return csv_data
 
-    def calc_and_save_cum_data(self, src_obj, dst_obj):
+
+    def calc_and_save_cumulative_data(self, src_obj, dst_obj):
+        dst_obj.value_ak = 0
+        dst_obj.value_ap = 0
+        dst_obj.value_at = 0
+        dst_obj.value_pk = 0
+        dst_obj.value_pp = 0
+        dst_obj.value_pt = 0
+        dst_obj.value_jk = 0
+        dst_obj.value_jp = 0
+        dst_obj.value_jt = 0 
         for src in src_obj:
             dst_obj.value_ak += src.value_ak
             dst_obj.value_ap += src.value_ap
@@ -97,28 +107,27 @@ class Command(BaseCommand):
         for station in stations:
             year = current_years[station]
             year_data = YearData.objects.update_or_create(year=year, station=stations[station])[0]
-            self.calc_and_save_cum_data(year.month_data.all(), year_data)
+            self.calc_and_save_cumulative_data(year.month_data.all(), year_data)
 
     def create_and_save_month_data(self, stations, current_months, current_years):                 
         for station in stations:
             month = current_months[station]
             month_data = MonthData.objects.update_or_create(month=month,\
                  station=stations[station], year=current_years[station])[0]
-            self.calc_and_save_cum_data(month.week_data.all(), month_data)
+            self.calc_and_save_cumulative_data(month.week_data.all(), month_data)
 
     def create_and_save_week_data(self, stations, current_weeks, current_months):
         for station in stations:
             week = current_weeks[station]
             week_data = WeekData.objects.update_or_create(week=week, station=stations[station], month=current_months[station])[0]
-            self.calc_and_save_cum_data(week.week_days.all(), week_data)
+            self.calc_and_save_cumulative_data(week.week_days.all(), week_data)
 
     def create_and_save_week_day(self, stations, current_days,current_day_number):
         for station in stations:
             current_day = current_days[station]
             week_day = WeekDay.objects.update_or_create(station=stations[station], \
                 date=current_day.date, week=current_day.week, day_number=current_day_number)[0]                       
-            self.save_and_calc_week_day(current_day, week_day)
-    
+            self.save_and_calc_week_day(current_day, week_day)    
 
     def save_and_calc_week_day(self, current_day, week_day):
         week_day.value_ak = sum(current_day.values_ak)
