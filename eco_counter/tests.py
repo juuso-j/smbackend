@@ -22,7 +22,7 @@ class ImporterTest(TestCase):
     def import_command(self, *args, **kwargs):
         out = StringIO()
         call_command(
-            "import_volumes",
+            "import_eco_counter",
             *args,
             stdout=out,
             stderr=StringIO(),
@@ -31,4 +31,4 @@ class ImporterTest(TestCase):
         return out.getvalue()
 
     def test_import(self):
-        self.import_command()
+        out = self.import_command("--test-mode")

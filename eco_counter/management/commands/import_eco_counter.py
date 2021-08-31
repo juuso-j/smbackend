@@ -3,6 +3,7 @@ import requests
 import pytz
 import math
 import io
+import re
 import pandas as pd 
 import dateutil.parser
 from datetime import datetime
@@ -28,7 +29,6 @@ LOCATIONS_URL = "https://dev.turku.fi/datasets/ecocounter/liikennelaskimet.geojs
 OBSERATIONS_URL = "https://dev.turku.fi/datasets/ecocounter/2020/counters-15min.csv"
 GK25_SRID = 3879
 
-#UTC_TIMEZONE = pytz.timezone("UTC")
 logger = logging.getLogger("django")
 
 class Command(BaseCommand):
@@ -57,29 +57,10 @@ class Command(BaseCommand):
         Station.objects.all().delete()
         ImportState.objects.all().delete()
 
-    def save_locations(self):
-        response_json = requests.get(LOCATIONS_URL).json()
-        features = response_json["features"]
-        saved = 0
-        for feature in features:
-            station = Station()
-            name = feature["properties"]["Nimi"]            
-            if not Station.objects.filter(name=name).exists():                
-                station.name = name
-                lon = feature["geometry"]["coordinates"][0]
-                lat = feature["geometry"]["coordinates"][1]
-                point = Point(lat, lon)
-                station.geom = point
-                station.save()
-                saved += 1
-
-        logger.info("Retrived {numloc} stations, saved {saved} stations.".format(numloc=len(features), saved=saved))
-
     def get_dataframe(self):
         string_data = requests.get(OBSERATIONS_URL).content
         csv_data = pd.read_csv(io.StringIO(string_data.decode('utf-8')))
         return csv_data
-
 
     def calc_and_save_cumulative_data(self, src_obj, dst_obj):
         dst_obj.value_ak = 0
@@ -169,15 +150,36 @@ class Command(BaseCommand):
                 day.values_jp.append(jp)
                 day.values_jt.append(tot)  
             day.save()
-    
-    def save_observations(self):         
+
+    def save_locations(self):
+        response_json = requests.get(LOCATIONS_URL).json()
+        features = response_json["features"]
+        saved = 0
+        for feature in features:
+            station = Station()
+            name = feature["properties"]["Nimi"]            
+            if not Station.objects.filter(name=name).exists():                
+                station.name = name
+                lon = feature["geometry"]["coordinates"][0]
+                lat = feature["geometry"]["coordinates"][1]
+                point = Point(lat, lon)
+                station.geom = point
+                station.save()
+                saved += 1
+
+        logger.info("Retrived {numloc} stations, saved {saved} stations.".format(numloc=len(features), saved=saved))
+
+    def gen_test_csv(self, keys):
+        pass
+
+
+    def save_observations(self, test_mode=False):         
         
         stations = {}
         #Dict used to lookup station relations
         for station in Station.objects.all():
-            stations[station.name] = station       
-
-        # Holds 
+            stations[station.name] = station     
+      
         current_hours = {}
         #Temporarly store references to day instances for every station(key) currenlty populating
         current_days = {}
@@ -198,14 +200,16 @@ class Command(BaseCommand):
         prev_week_number = None
         
         csv_data = self.get_dataframe()
-        # We start import from the first day and time 00:00:00 of the current_mont
-        
-        start_time = "{year}-{month}-1 00:00:00".format(year=import_state.current_year_number, month=import_state.current_month_number)
-        start_time = dateutil.parser.parse(start_time)
-        start_index = csv_data.index[csv_data["aika"]==str(start_time)].values[0]
-        logger.info("Starting import from index: {}".format(start_index))
-        csv_data = csv_data[start_index:]
-       
+        if not test_mode:
+            # We start import from the first day and time 00:00:00 of the current_mont
+            start_time = "{year}-{month}-1 00:00:00".format(year=import_state.current_year_number, month=import_state.current_month_number)
+            start_time = dateutil.parser.parse(start_time)
+            start_index = csv_data.index[csv_data["aika"]==str(start_time)].values[0]
+            logger.info("Starting import from index: {}".format(start_index))
+            csv_data = csv_data[start_index:]
+        else:
+            csv_data = self.gen_test_csv(csv_data.keys()) 
+
         for station in stations:
             current_years[station] = Year.objects.get_or_create(station=stations[station], \
                 year_number=current_year_number)[0]           
@@ -223,10 +227,10 @@ class Command(BaseCommand):
             try:
                 time = dateutil.parser.parse(row["aika"]) # 2021-08-23 00:00:00
                 time = make_aware(time)
-            except pytz.exceptions.NonExistentTimeError:                           
-                logging.warning("NonExistentTimeError at time: "+str(time))
-            except pytz.exceptions.AmbiguousTimeError:
-                logging.warning("AmibiguousTimeError at time: "+str(time))
+            except pytz.exceptions.NonExistentTimeError as err:                           
+                logging.warning("NonExistentTimeError at time: " + str(time) + " Err: " + str(err))
+            except pytz.exceptions.AmbiguousTimeError as err:
+                logging.warning("AmibiguousTimeError at time: " + str(time) + " Err: " + str(err))
 
             current_year_number, current_week_number, current_day_number = datetime.date(time).isocalendar()
             current_month_number = datetime.date(time).month
@@ -259,34 +263,24 @@ class Command(BaseCommand):
 
             # Build the current_hours dict by iterating all cols in row.
             # current_hours dict store the rows csv_data in a structured form. 
-            # current_hours dict is of type:
-            # current_hours[station][type] = value, e.g. current_hours["TeatteriSilta"]["PK"] = 6
-            #for col in row:
-            #Note the first col is the "aika" and is discarded, the rest are observated current_hours
-            for col in range(1, len(self.columns)):                
-                tmp = self.columns[col].split()
-                type = ""
-                name = ""
-                for t in tmp:
-                    #the type is always uppercase and has length of two
-                    if t.isupper() and len(t) == 2:                        
-                        type += t
-                    else:
-                        if len(name) > 0:
-                            name += " "+t
-                        else:
-                            name += t
+            # current_hours dict keys are station_type: Types are A, P J and dir P , e.g. of station_type is "JK"
+            # current_hours[station][station_type] = value, e.g. current_hours["TeatteriSilta"]["PK"] = 6
+            #Note the first col is the "aika" and is discarded, the rest are observation for every station
+            for column in self.columns[1:]: 
+                #Station type is always: A|P|J + K|P           
+                station_type = re.findall("[A-Z][A-Z]", column)[0]
+                station_name = column.replace(station_type,"").strip()                
                
-                value = row[col]
+                value = row[column]
                 if math.isnan(value):
                     value = 0               
-                if name not in current_hours:
-                    current_hours[name]={}
+                if station_name not in current_hours:
+                    current_hours[station_name]={}
                 # if type exist in current_hours, we add the new value to get the hourly sample
-                if type in current_hours[name]:                                     
-                    current_hours[name][type] = int(current_hours[name][type]) + value
+                if station_type in current_hours[station_name]:                                     
+                    current_hours[station_name][station_type] = int(current_hours[station_name][station_type]) + value
                 else:
-                    current_hours[name][type] = value
+                    current_hours[station_name][station_type] = value
                
             # Create day table every 24*4  (24h*15min) iteration
             if index % (24*4) == 0:   
@@ -306,39 +300,48 @@ class Command(BaseCommand):
                 current_hours = {}
         
         
-        # TODO calc the current year, mont and week data....
+        # Save hours, weeksday, months etc. that are not fully populated.
         self.save_day(current_hours, current_days)  
         self.create_and_save_week_day(stations, current_days,current_day_number)                                
-        
         self.create_and_save_week_data(stations, current_weeks, current_months)                 
         self.create_and_save_month_data(stations, current_months, current_years)                 
-        self.create_and_save_year_data(stations, current_years)                       
+        self.create_and_save_year_data(stations, current_years)                     
         
-
         import_state.current_year_number = current_year_number
         import_state.current_month_number = current_month_number
         import_state.rows_imported = rows_imported + len(csv_data)     
         import_state.save()
 
     def add_arguments(self, parser):
-        parser.add_argument(
+        parser.add_argument(           
             "--delete-tables",
             action="store_true",
-            dest="delete-tables",
             default=False,
             help="Deletes tables before importing.",
         )
+        parser.add_argument(            
+            "--test-mode", 
+            action="store_true",           
+            default=False,
+            help="Run script in test mode.",
+        )
+
 
     def handle(self, *args, **options):
-        logger.info("Retrieving stations...")
-        
-        if options["delete-tables"]:
-            print("Deleting tables")
+  
+        if  options["delete_tables"]:
+            logger.info("Deleting tables")
             self.delete_tables()
 
-        self.save_locations()
+        logger.info("Retrieving stations...")
+        self.save_locations()        
+
         logger.info("Retrieving observations...")
-        self.save_observations()
+        if options["test_mode"]:
+            logger.info("Retrieving observations in test mode.")
+            self.save_observations(test_mode=True)
+        else:         
+            self.save_observations()
       
 
              
