@@ -29,6 +29,7 @@ class ImportState(SingletonModel):
     rows_imported = models.PositiveIntegerField(default=0)
     current_year_number = models.PositiveSmallIntegerField(choices=YEAR_CHOICES, default=START_YEAR)
     current_month_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(12)], default=1)
+    current_week_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(53)], default=1)
 
 
 class Station(models.Model):    
@@ -73,7 +74,7 @@ class Week(models.Model):
         related_name="weeks")
     week_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(53)])
     year = models.ForeignKey("Year", on_delete=models.CASCADE, related_name="weeks", null=True)
-    month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="weeks", null=True)
+    #month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="weeks", null=True)
   
 
 class YearData(CounterData):
@@ -93,17 +94,19 @@ class WeekData(CounterData):
     station = models.ForeignKey("Station", on_delete=models.CASCADE,\
         related_name="week_data", null=True)    
     week = models.ForeignKey("Week", on_delete=models.CASCADE, related_name="week_data", null=True)
-    month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="week_data", null=True)
+    #month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="week_data", null=True)
 
 
 class WeekDay(CounterData):
     station = models.ForeignKey("Station", on_delete=models.CASCADE,\
         related_name="weekdays", null=True)      
     week = models.ForeignKey("Week", on_delete=models.CASCADE, related_name="week_days", null=True)
+    month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="week_days", null=True)
     date = models.DateField(default=now)
     day_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(7)], default=1)
  
-
+ 
+# Stores Hourly data
 class Day(models.Model):    
     station = models.ForeignKey("Station", on_delete=models.CASCADE,\
         related_name="days")

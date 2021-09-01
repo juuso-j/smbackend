@@ -31,4 +31,9 @@ class ImporterTest(TestCase):
         return out.getvalue()
 
     def test_import(self):
-        out = self.import_command("--test-mode")
+        out = self.import_command("--test-mode 1000")
+        print(YearData.objects.get(pk=1).value_jp)
+        out = self.import_command("--test-mode 500")
+        print(YearData.objects.get(pk=1).value_jp)
+        
+        breakpoint()

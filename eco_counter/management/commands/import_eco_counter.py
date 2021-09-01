@@ -6,7 +6,7 @@ import io
 import re
 import pandas as pd 
 import dateutil.parser
-from datetime import datetime
+from datetime import datetime, timedelta
 from django.utils.timezone import make_aware
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib.gis.geos import Point
@@ -95,19 +95,23 @@ class Command(BaseCommand):
             month = current_months[station]
             month_data = MonthData.objects.update_or_create(month=month,\
                  station=stations[station], year=current_years[station])[0]
-            self.calc_and_save_cumulative_data(month.week_data.all(), month_data)
+            qs = WeekDay.objects.filter(month=month, month__year=current_years[station])
+            self.calc_and_save_cumulative_data(qs, month_data)
 
-    def create_and_save_week_data(self, stations, current_weeks, current_months):
+            #self.calc_and_save_cumulative_data(month.week_data.all(), month_data)
+
+    def create_and_save_week_data(self, stations, current_weeks):
         for station in stations:
             week = current_weeks[station]
-            week_data = WeekData.objects.update_or_create(week=week, station=stations[station], month=current_months[station])[0]
+            week_data = WeekData.objects.update_or_create(week=week, station=stations[station])[0]
             self.calc_and_save_cumulative_data(week.week_days.all(), week_data)
 
     def create_and_save_week_day(self, stations, current_days,current_day_number):
         for station in stations:
             current_day = current_days[station]
             week_day = WeekDay.objects.update_or_create(station=stations[station], \
-                date=current_day.date, week=current_day.week, day_number=current_day_number)[0]                       
+                date=current_day.date, week=current_day.week, month=current_day.month, \
+                    day_number=current_day_number)[0]                       
             self.save_and_calc_week_day(current_day, week_day)    
 
     def save_and_calc_week_day(self, current_day, week_day):
@@ -169,11 +173,22 @@ class Command(BaseCommand):
 
         logger.info("Retrived {numloc} stations, saved {saved} stations.".format(numloc=len(features), saved=saved))
 
-    def gen_test_csv(self, keys):
-        pass
+    def gen_test_csv(self, keys, num_rows=1000):
+        df = pd.DataFrame(columns=keys)
+        df.keys = keys
 
+        #times = pd.date_range(start="2020-01-01 00:00:00", end="2020-01-23 00:00:00", freq="15m")
+        cur_time = dateutil.parser.parse("2020-01-01 00:00:00")
+        for c in range(1000):
+            cur_time = cur_time + timedelta(minutes=15)
+            vals = [1 for x in range(24)]
+            vals.insert(0, str(cur_time))
+            df.loc[c] = vals
+            
+        return df
+       
 
-    def save_observations(self, test_mode=False):         
+    def save_observations(self, csv_data):         
         
         stations = {}
         #Dict used to lookup station relations
@@ -192,36 +207,25 @@ class Command(BaseCommand):
         rows_imported = import_state.rows_imported
         current_year_number = import_state.current_year_number 
         current_month_number = import_state.current_month_number
-        # week number is derived from the month
-        current_week_number = None
+        current_week_number = import_state.current_week_number
         current_day_number = None    
         prev_year_number = current_year_number
         prev_month_number = current_month_number
-        prev_week_number = None
-        
-        csv_data = self.get_dataframe()
-        if not test_mode:
-            # We start import from the first day and time 00:00:00 of the current_mont
-            start_time = "{year}-{month}-1 00:00:00".format(year=import_state.current_year_number, month=import_state.current_month_number)
-            start_time = dateutil.parser.parse(start_time)
-            start_index = csv_data.index[csv_data["aika"]==str(start_time)].values[0]
-            logger.info("Starting import from index: {}".format(start_index))
-            csv_data = csv_data[start_index:]
-        else:
-            csv_data = self.gen_test_csv(csv_data.keys()) 
-
+        prev_week_number = current_week_number        
+       
         for station in stations:
             current_years[station] = Year.objects.get_or_create(station=stations[station], \
                 year_number=current_year_number)[0]           
             current_months[station] = Month.objects.get_or_create(station=stations[station], \
-                year=current_years[station], month_number=current_month_number)[0]
-            #All weeks from the current_month are delete thus they are repopulated
-            Week.objects.filter(station=stations[station], year=current_years[station],\
-                 month=current_months[station]).delete()
-            
-        current_week_number = start_time.isocalendar()[1]         
-        self.columns = csv_data.keys()         
+                year=current_years[station], month_number=current_month_number)[0]            
+            current_weeks[station] = Week.objects.get_or_create(station=stations[station],\
+                 year=current_years[station], week_number=current_week_number)[0]
         
+        #All Hourly and daily data from the current_month are delete thus they are repopulated         
+        Day.objects.filter(month__year__year_number=current_year_number, \
+            month__month_number=current_month_number).delete()
+        WeekDay.objects.filter(month__month_number=current_month_number, \
+            month__year__year_number=current_year_number).delete()
         for index, row in csv_data.iterrows():
             print(" . " + str(index), end = "")
             try:
@@ -255,12 +259,11 @@ class Command(BaseCommand):
             if prev_week_number != current_week_number or not current_weeks:                
                 #if week changed store weekly data
                 if prev_week_number:
-                    self.create_and_save_week_data(stations, current_weeks, current_months)                 
+                    self.create_and_save_week_data(stations, current_weeks)                 
                 for station in stations:
-                    week = Week.objects.create(station=stations[station], month=current_months[station], week_number=current_week_number, year=current_years[station])
+                    week = Week.objects.create(station=stations[station], week_number=current_week_number, year=current_years[station])
                     current_weeks[station] = week                
                 prev_week_number = current_week_number
-
             # Build the current_hours dict by iterating all cols in row.
             # current_hours dict store the rows csv_data in a structured form. 
             # current_hours dict keys are station_type: Types are A, P J and dir P , e.g. of station_type is "JK"
@@ -303,12 +306,13 @@ class Command(BaseCommand):
         # Save hours, weeksday, months etc. that are not fully populated.
         self.save_day(current_hours, current_days)  
         self.create_and_save_week_day(stations, current_days,current_day_number)                                
-        self.create_and_save_week_data(stations, current_weeks, current_months)                 
+        self.create_and_save_week_data(stations, current_weeks)                 
         self.create_and_save_month_data(stations, current_months, current_years)                 
         self.create_and_save_year_data(stations, current_years)                     
         
         import_state.current_year_number = current_year_number
         import_state.current_month_number = current_month_number
+        import_state.current_week_number = current_week_number
         import_state.rows_imported = rows_imported + len(csv_data)     
         import_state.save()
 
@@ -321,14 +325,15 @@ class Command(BaseCommand):
         )
         parser.add_argument(            
             "--test-mode", 
-            action="store_true",           
+            type=int,
+            nargs="?",
             default=False,
             help="Run script in test mode.",
         )
 
 
     def handle(self, *args, **options):
-  
+
         if  options["delete_tables"]:
             logger.info("Deleting tables")
             self.delete_tables()
@@ -337,11 +342,22 @@ class Command(BaseCommand):
         self.save_locations()        
 
         logger.info("Retrieving observations...")
+        csv_data = self.get_dataframe()
+
         if options["test_mode"]:
             logger.info("Retrieving observations in test mode.")
-            self.save_observations(test_mode=True)
-        else:         
-            self.save_observations()
+            csv_data = self.gen_test_csv(csv_data.keys(), options["test_mode"]) 
+            #start_time = dateutil.parser.parse("2020-01-01 00:00:00")
+        else:
+            self.columns = csv_data.keys()         
+            import_state = ImportState.load() 
+            start_time = "{year}-{month}-1 00:00:00".format(year=import_state.current_year_number, \
+                month=import_state.current_month_number)
+            start_time = dateutil.parser.parse(start_time)
+            start_index = csv_data.index[csv_data["aika"]==str(start_time)].values[0]
+            logger.info("Starting import from index: {}".format(start_index))
+            csv_data = csv_data[start_index:]
+        self.save_observations(csv_data)
       
 
              
