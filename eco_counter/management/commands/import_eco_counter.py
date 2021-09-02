@@ -22,14 +22,14 @@ from eco_counter.models import (
     Year, 
     YearData,
     ImportState
-
     )
 
-LOCATIONS_URL = "https://dev.turku.fi/datasets/ecocounter/liikennelaskimet.geojson"
+STATIONS_URL = "https://dev.turku.fi/datasets/ecocounter/liikennelaskimet.geojson"
 OBSERATIONS_URL = "https://dev.turku.fi/datasets/ecocounter/2020/counters-15min.csv"
 GK25_SRID = 3879
-
+# TODO create logger for this module!!!
 logger = logging.getLogger("django")
+
 
 class Command(BaseCommand):
     help = "Imports Turku Traffic Volumes"
@@ -58,7 +58,10 @@ class Command(BaseCommand):
         ImportState.objects.all().delete()
 
     def get_dataframe(self):
-        string_data = requests.get(OBSERATIONS_URL).content
+        response = requests.get(OBSERATIONS_URL) 
+        assert response.status_code == 200, "Fetching observations csv {} status code {}".\
+            format(OBSERATIONS_URL, response.status_code)
+        string_data = response.content
         csv_data = pd.read_csv(io.StringIO(string_data.decode('utf-8')))
         return csv_data
 
@@ -98,8 +101,6 @@ class Command(BaseCommand):
             qs = WeekDay.objects.filter(month=month, month__year=current_years[station])
             self.calc_and_save_cumulative_data(qs, month_data)
 
-            #self.calc_and_save_cumulative_data(month.week_data.all(), month_data)
-
     def create_and_save_week_data(self, stations, current_weeks):
         for station in stations:
             week = current_weeks[station]
@@ -111,7 +112,7 @@ class Command(BaseCommand):
             current_day = current_days[station]
             week_day = WeekDay.objects.update_or_create(station=stations[station], \
                 date=current_day.date, week=current_day.week, month=current_day.month, \
-                    day_number=current_day_number)[0]                       
+                    day_number=current_day_number)[0]                             
             self.save_and_calc_week_day(current_day, week_day)    
 
     def save_and_calc_week_day(self, current_day, week_day):
@@ -126,9 +127,9 @@ class Command(BaseCommand):
         week_day.value_jt = sum(current_day.values_jt)
         week_day.save()
 
-    def save_day(self, current_hours, current_days):
+    def save_hours(self, current_hours, current_days):
         for station in current_hours:                   
-            day = current_days[station]
+            day = current_days[station]            
             # Store "Auto"
             if "AK" and "AP" in current_hours[station]:
                 ak = current_hours[station]["AK"]
@@ -156,7 +157,11 @@ class Command(BaseCommand):
             day.save()
 
     def save_locations(self):
-        response_json = requests.get(LOCATIONS_URL).json()
+        response = requests.get(STATIONS_URL)
+        assert response.status_code == 200, "Fetching stations from {} , status code {}"\
+            .format(STATIONS_URL, response.status_code)
+
+        response_json = response.json()
         features = response_json["features"]
         saved = 0
         for feature in features:
@@ -171,24 +176,23 @@ class Command(BaseCommand):
                 station.save()
                 saved += 1
 
-        logger.info("Retrived {numloc} stations, saved {saved} stations.".format(numloc=len(features), saved=saved))
+        logger.info("Retrived {numloc} stations, saved {saved} stations.".\
+            format(numloc=len(features), saved=saved))
 
-    def gen_test_csv(self, keys, num_rows=1000):
+    def gen_test_csv(self, keys, start_time, end_time):
         df = pd.DataFrame(columns=keys)
         df.keys = keys
-
-        #times = pd.date_range(start="2020-01-01 00:00:00", end="2020-01-23 00:00:00", freq="15m")
-        cur_time = dateutil.parser.parse("2020-01-01 00:00:00")
-        for c in range(1000):
-            cur_time = cur_time + timedelta(minutes=15)
+        cur_time = start_time
+        c = 0
+        while cur_time <= end_time:
             vals = [1 for x in range(24)]
             vals.insert(0, str(cur_time))
             df.loc[c] = vals
-            
-        return df
-       
+            cur_time = cur_time + timedelta(minutes=15)
+            c += 1            
+        return df       
 
-    def save_observations(self, csv_data):         
+    def save_observations(self, csv_data, start_time):         
         
         stations = {}
         #Dict used to lookup station relations
@@ -208,11 +212,19 @@ class Command(BaseCommand):
         current_year_number = import_state.current_year_number 
         current_month_number = import_state.current_month_number
         current_week_number = import_state.current_week_number
-        current_day_number = None    
+        current_day_number = None
+
+        prev_day_number = datetime.date(start_time).isocalendar()[2]         
         prev_year_number = current_year_number
         prev_month_number = current_month_number
         prev_week_number = current_week_number        
-       
+
+        #All Hourly and daily data from the current_month are delete thus they are repopulated         
+        Day.objects.filter(month__year__year_number=current_year_number, \
+            month__month_number=current_month_number).delete()
+        WeekDay.objects.filter(month__month_number=current_month_number, \
+            month__year__year_number=current_year_number).delete()
+        # Set the current state before starting populating
         for station in stations:
             current_years[station] = Year.objects.get_or_create(station=stations[station], \
                 year_number=current_year_number)[0]           
@@ -220,25 +232,22 @@ class Command(BaseCommand):
                 year=current_years[station], month_number=current_month_number)[0]            
             current_weeks[station] = Week.objects.get_or_create(station=stations[station],\
                  year=current_years[station], week_number=current_week_number)[0]
-        
-        #All Hourly and daily data from the current_month are delete thus they are repopulated         
-        Day.objects.filter(month__year__year_number=current_year_number, \
-            month__month_number=current_month_number).delete()
-        WeekDay.objects.filter(month__month_number=current_month_number, \
-            month__year__year_number=current_year_number).delete()
-        for index, row in csv_data.iterrows():
-            print(" . " + str(index), end = "")
+        #     current_days[station] = Day.objects.create(date=start_time.date(), station=stations[station],\
+        #         week=current_weeks[station], month=current_months[station], day_number=start_time.date().isocalendar()[2])                   
+        for index, row in csv_data.iterrows():           
+            #print(" . " + str(index), end = "")
             try:
-                time = dateutil.parser.parse(row["aika"]) # 2021-08-23 00:00:00
-                time = make_aware(time)
+                current_time = dateutil.parser.parse(row["aika"]) # 2021-08-23 00:00:00
+                current_time = make_aware(current_time)
             except pytz.exceptions.NonExistentTimeError as err:                           
-                logging.warning("NonExistentTimeError at time: " + str(time) + " Err: " + str(err))
+                logging.warning("NonExistentTimeError at time: " + str(current_time) + " Err: " + str(err))
             except pytz.exceptions.AmbiguousTimeError as err:
-                logging.warning("AmibiguousTimeError at time: " + str(time) + " Err: " + str(err))
+                logging.warning("AmibiguousTimeError at time: " + str(current_time) + " Err: " + str(err))
 
-            current_year_number, current_week_number, current_day_number = datetime.date(time).isocalendar()
-            current_month_number = datetime.date(time).month
-            # Add new year table if year does exist for every station and add references to state(current_years)
+            current_year_number, current_week_number, current_day_number = datetime.date(current_time).isocalendar()
+            #print(f"Index {index} {current_time} Week num {current_week_number} Prev week {prev_week_number} CurrentDay: {current_day_number}")
+            current_month_number = datetime.date(current_time).month
+                   # Add new year table if year does exist for every station and add references to state(current_years)
             if prev_year_number != current_year_number or not current_years:
                 # if we have a prev_year_number and it is not the current_year_number store data.
                 if prev_year_number:                   
@@ -246,29 +255,45 @@ class Command(BaseCommand):
                 for station in stations:
                     year = Year.objects.create(year_number=current_year_number, station=stations[station])
                     current_years[station] = year
-                prev_year_number = current_year_number
+                prev_year_number = current_year_number               
+                  
+            #Adds data for an hour every fourth iteration, sample rate is 15min
+            # Add 1 to avoid modulo by 0
+            if (index) % 4 == 0:
+                self.save_hours(current_hours, current_days)                
+                # Clear current_hours after storage, to get data for every hour
+                current_hours = {}
+            
+            # Create day table every 24*4  (24h*15min) iteration
+            if prev_day_number != current_day_number or not current_days:  
+                # Store the WeekDay object that contains the daily csv_data(24 hour csv_data samples)
+                if current_days:
+                    self.create_and_save_week_day(stations, current_days, prev_day_number)                                  
+                current_days = {}
 
-            if prev_month_number != current_month_number or not current_months:
-                if  prev_month_number:  
-                    self.create_and_save_month_data(stations, current_months, current_years)                 
-                for station in stations:
-                    month = Month.objects.create(station=stations[station], year=current_years[station], month_number=current_month_number)
-                    current_months[station] = month                
-                prev_month_number = current_month_number
-
-            if prev_week_number != current_week_number or not current_weeks:                
-                #if week changed store weekly data
-                if prev_week_number:
-                    self.create_and_save_week_data(stations, current_weeks)                 
-                for station in stations:
-                    week = Week.objects.create(station=stations[station], week_number=current_week_number, year=current_years[station])
-                    current_weeks[station] = week                
-                prev_week_number = current_week_number
+                # Save new month before creating days for correct relations
+                if prev_month_number != current_month_number or not current_months:
+                    if  prev_month_number:  
+                        self.create_and_save_month_data(stations, current_months, current_years)                 
+                    for station in stations:
+                        month = Month.objects.create(station=stations[station],\
+                            year=current_years[station], month_number=current_month_number)
+                        current_months[station] = month                
+                    prev_month_number = current_month_number             
+                
+                for station in stations:                    
+                    day = Day.objects.create(date=current_time.date(), station=stations[station],\
+                         week=current_weeks[station], month=current_months[station], day_number=current_day_number)                   
+                    current_days[station] = day 
+                prev_day_number = current_day_number             
+           
+                     
             # Build the current_hours dict by iterating all cols in row.
-            # current_hours dict store the rows csv_data in a structured form. 
-            # current_hours dict keys are station_type: Types are A, P J and dir P , e.g. of station_type is "JK"
+            # current_hours dict store the rows in a structured form. 
+            # current_hours keys are stations and every field contains a dict with the type as its key
+            # Types are A|P|J(types: Auto, Pyöräilijä, Jalankulkija) and direction P|K , e.g. "JK"
             # current_hours[station][station_type] = value, e.g. current_hours["TeatteriSilta"]["PK"] = 6
-            #Note the first col is the "aika" and is discarded, the rest are observation for every station
+            #Note the first col is the "aika" and is discarded, the rest are observations for every station
             for column in self.columns[1:]: 
                 #Station type is always: A|P|J + K|P           
                 station_type = re.findall("[A-Z][A-Z]", column)[0]
@@ -284,27 +309,22 @@ class Command(BaseCommand):
                     current_hours[station_name][station_type] = int(current_hours[station_name][station_type]) + value
                 else:
                     current_hours[station_name][station_type] = value
-               
-            # Create day table every 24*4  (24h*15min) iteration
-            if index % (24*4) == 0:   
-                # Store the WeekDay object that contains the daily csv_data(24 hour csv_data samples)
-                if current_days:
-                    self.create_and_save_week_day(stations, current_days,current_day_number)                                    
-                current_days = {}
+
+            if prev_week_number != current_week_number or not current_weeks:                                  
+                #if week changed store weekly data
+                if prev_week_number:
+                    self.create_and_save_week_data(stations, current_weeks)                 
                 for station in stations:
-                    day = Day.objects.create(date=time.date(), station=stations[station],\
-                         week=current_weeks[station], month=current_months[station], day_number=current_day_number)                   
-                    current_days[station] = day
-            
-            #Adds data for an hour every fourth iteration, sample rate is 15min
-            if index % 4 == 0:
-                self.save_day(current_hours, current_days)                
-                # Clear current_hours after storage, to get data for every hour
-                current_hours = {}
+                    week = Week.objects.create(station=stations[station],\
+                        week_number=current_week_number, year=current_years[station])
+                    current_weeks[station] = week                
+                    day = current_days[station]
+                    day.week = week
+                prev_week_number = current_week_number  
+       
         
-        
-        # Save hours, weeksday, months etc. that are not fully populated.
-        self.save_day(current_hours, current_days)  
+        #Finally save hours, weekdays, months etc. that are not fully populated.
+        self.save_hours(current_hours, current_days)  
         self.create_and_save_week_day(stations, current_days,current_day_number)                                
         self.create_and_save_week_data(stations, current_weeks)                 
         self.create_and_save_month_data(stations, current_months, current_years)                 
@@ -315,6 +335,7 @@ class Command(BaseCommand):
         import_state.current_week_number = current_week_number
         import_state.rows_imported = rows_imported + len(csv_data)     
         import_state.save()
+        logger.info("Imported observation to: "+str(current_time))
 
     def add_arguments(self, parser):
         parser.add_argument(           
@@ -326,7 +347,7 @@ class Command(BaseCommand):
         parser.add_argument(            
             "--test-mode", 
             type=int,
-            nargs="?",
+            nargs="+",
             default=False,
             help="Run script in test mode.",
         )
@@ -343,11 +364,13 @@ class Command(BaseCommand):
 
         logger.info("Retrieving observations...")
         csv_data = self.get_dataframe()
-
+        start_time = None
         if options["test_mode"]:
             logger.info("Retrieving observations in test mode.")
-            csv_data = self.gen_test_csv(csv_data.keys(), options["test_mode"]) 
+            start_time = options["test_mode"][0]
+            csv_data = self.gen_test_csv(csv_data.keys(), start_time, options["test_mode"][1]) 
             #start_time = dateutil.parser.parse("2020-01-01 00:00:00")
+            
         else:
             self.columns = csv_data.keys()         
             import_state = ImportState.load() 
@@ -355,9 +378,9 @@ class Command(BaseCommand):
                 month=import_state.current_month_number)
             start_time = dateutil.parser.parse(start_time)
             start_index = csv_data.index[csv_data["aika"]==str(start_time)].values[0]
-            logger.info("Starting import from index: {}".format(start_index))
+            logger.info("Starting import at index: {}".format(start_index))
             csv_data = csv_data[start_index:]
-        self.save_observations(csv_data)
+        self.save_observations(csv_data, start_time)
       
 
              
