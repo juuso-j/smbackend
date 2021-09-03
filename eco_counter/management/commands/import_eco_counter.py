@@ -1,3 +1,36 @@
+"""
+Brief explanation of the import alogithm:
+
+1. Read the csv file as a pandas DataFrame
+2. Reads the year and month from the ImportState 
+3. Sets the import to begin from that year and month, the import always begins
+ from the first day of the month in state, i.e. the longest timespan that is 
+ imported is one month and the shortest 15min.
+4. Set the current state to state variables: current_years, currents_months, 
+ current_weeks, this dictionaries holds references to the model instances. 
+ Every station has its own state variables, the key for the state variables
+  is the station.
+5. Iterate through all the rows
+    5.1 Read the time
+    5.2 Read the current year, month, week and day number
+    5.3 If Year number has changed, save year data and create new year 
+     instances with the new year and set to the current state
+    5.4 If index % 4 == 0 save current hour, the input data has a sample rate
+     of 15min, and the precision stored while importing is One hour.
+    5.5 If day number has changed save day data.
+    5.5.1 If month number has changed save the current month data and 
+           create new instances and store the references to the state.
+    5.5.2 Create new day instances and update state
+    5.6 Iterate through all the columns, except the first that holds the time.
+    5.6.1 Stores the sampled data to current_hours state for every station, 
+         every mode of transportaion and direction.
+    5.7 If week has changed store week data, create new instances and update
+         state.
+6. Finally store all data in state that has not been saved.
+7. Save state.
+
+"""
+
 import logging
 import requests
 import pytz
@@ -180,6 +213,10 @@ class Command(BaseCommand):
             format(numloc=len(features), saved=saved))
 
     def gen_test_csv(self, keys, start_time, end_time):
+        """
+        Generates testdata for a given timespan, 
+        for every 15min the value 1 is set.
+        """
         df = pd.DataFrame(columns=keys)
         df.keys = keys
         cur_time = start_time
@@ -200,9 +237,7 @@ class Command(BaseCommand):
             stations[station.name] = station     
       
         current_hours = {}
-        #Temporarly store references to day instances for every station(key) currenlty populating
         current_days = {}
-        #Temporarly store references to week instances for every station(key) currently populating
         current_weeks = {}
         current_months = {}
         current_years = {}      
@@ -232,24 +267,23 @@ class Command(BaseCommand):
                 year=current_years[station], month_number=current_month_number)[0]            
             current_weeks[station] = Week.objects.get_or_create(station=stations[station],\
                  year=current_years[station], week_number=current_week_number)[0]
-        #     current_days[station] = Day.objects.create(date=start_time.date(), station=stations[station],\
-        #         week=current_weeks[station], month=current_months[station], day_number=start_time.date().isocalendar()[2])                   
+  
         for index, row in csv_data.iterrows():           
-            #print(" . " + str(index), end = "")
+            print(" . " + str(index), end = "")
             try:
                 current_time = dateutil.parser.parse(row["aika"]) # 2021-08-23 00:00:00
                 current_time = make_aware(current_time)
             except pytz.exceptions.NonExistentTimeError as err:                           
                 logging.warning("NonExistentTimeError at time: " + str(current_time) + " Err: " + str(err))
             except pytz.exceptions.AmbiguousTimeError as err:
+                #For some reason raises sometimes AmibiousTimeError for times that seems to be ok. e.g. 2020-03-29 03:45:00
                 logging.warning("AmibiguousTimeError at time: " + str(current_time) + " Err: " + str(err))
 
             current_year_number, current_week_number, current_day_number = datetime.date(current_time).isocalendar()
-            #print(f"Index {index} {current_time} Week num {current_week_number} Prev week {prev_week_number} CurrentDay: {current_day_number}")
             current_month_number = datetime.date(current_time).month
-                   # Add new year table if year does exist for every station and add references to state(current_years)
+            # Add new year table if year does exist for every station and add references to state(current_years)
             if prev_year_number != current_year_number or not current_years:
-                # if we have a prev_year_number and it is not the current_year_number store data.
+                # if we have a prev_year_number and it is not the current_year_number store yearly data.
                 if prev_year_number:                   
                     self.create_and_save_year_data(stations, current_years)                       
                 for station in stations:
@@ -342,7 +376,7 @@ class Command(BaseCommand):
             "--delete-tables",
             action="store_true",
             default=False,
-            help="Deletes tables before importing.",
+            help="Deletes tables before importing. Importing starts from row 0.",
         )
         parser.add_argument(            
             "--test-mode", 
@@ -352,16 +386,13 @@ class Command(BaseCommand):
             help="Run script in test mode.",
         )
 
-
     def handle(self, *args, **options):
-
         if  options["delete_tables"]:
             logger.info("Deleting tables")
             self.delete_tables()
 
         logger.info("Retrieving stations...")
-        self.save_locations()        
-
+        self.save_locations()      
         logger.info("Retrieving observations...")
         csv_data = self.get_dataframe()
         start_time = None
@@ -369,8 +400,7 @@ class Command(BaseCommand):
             logger.info("Retrieving observations in test mode.")
             start_time = options["test_mode"][0]
             csv_data = self.gen_test_csv(csv_data.keys(), start_time, options["test_mode"][1]) 
-            #start_time = dateutil.parser.parse("2020-01-01 00:00:00")
-            
+            #start_time = dateutil.parser.parse("2020-01-01 00:00:00")            
         else:
             self.columns = csv_data.keys()         
             import_state = ImportState.load() 

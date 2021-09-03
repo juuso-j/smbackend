@@ -33,7 +33,7 @@ class ImporterTest(TestCase):
         )
         return out.getvalue()
     """
-    In test data, for every 15min is the value 1 set, so the sum for an hour is 4.
+    In test data, for every 15min the value 1 is set, so the sum for an hour is 4.
     For a day the sum is 96(24*4) and for a week 682(96*7). 
     The month sum depends on how  many days the month has,~3000 
     1.1.2020 is used as the starting point thus it is the same 
