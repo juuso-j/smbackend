@@ -94,24 +94,23 @@ class WeekData(CounterData):
     station = models.ForeignKey("Station", on_delete=models.CASCADE,\
         related_name="week_data", null=True)    
     week = models.ForeignKey("Week", on_delete=models.CASCADE, related_name="week_data", null=True)
-    #month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="week_data", null=True)
 
 
-class WeekDay(CounterData):
+class Day(CounterData):
     station = models.ForeignKey("Station", on_delete=models.CASCADE,\
-        related_name="weekdays", null=True)      
-    week = models.ForeignKey("Week", on_delete=models.CASCADE, related_name="week_days", null=True)
-    month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="week_days", null=True)
+        related_name="days", null=True)      
+    week = models.ForeignKey("Week", on_delete=models.CASCADE, related_name="days", null=True)
+    month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="days", null=True)
     date = models.DateField(default=now)
     day_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(7)], default=1)
  
  
-# Stores Hourly data
-class Day(models.Model):    
+# Hourly data for a day
+class HourData(models.Model):    
     station = models.ForeignKey("Station", on_delete=models.CASCADE,\
-        related_name="days")
-    week = models.ForeignKey("Week", on_delete=models.CASCADE, related_name="days", null=True)
-    month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="days", null=True)
+        related_name="hour_data")
+    week = models.ForeignKey("Week", on_delete=models.CASCADE, related_name="hour_data", null=True)
+    month = models.ForeignKey("Month", on_delete=models.CASCADE, related_name="hour_data", null=True)
     date = models.DateField(default=now)
     day_number = models.PositiveSmallIntegerField(validators=[MinValueValidator(1), MaxValueValidator(7)], default=1)
     values_ak = ArrayField(models.PositiveSmallIntegerField(), default=list)

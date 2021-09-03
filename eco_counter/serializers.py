@@ -1,17 +1,17 @@
 from rest_framework import serializers
 from .models import (
-    Day, 
+    HourData, 
     Station, 
     Week, 
-    WeekDay, 
+    Day, 
     WeekData,
     Month,
     MonthData)
 
-class DaySerializer(serializers.ModelSerializer):
+class HourDataSerializer(serializers.ModelSerializer):
     
     class Meta:
-        model = Day
+        model = HourData
         fields = "__all__"
 
 
@@ -37,10 +37,10 @@ class StationSerializer(serializers.ModelSerializer):
         return obj.geom.y
 
 
-class WeekDaySerializer(serializers.ModelSerializer):
+class DaySerializer(serializers.ModelSerializer):
     
     class Meta:
-        model = WeekDay
+        model = Day
         fields = "__all__"
 
 
@@ -57,18 +57,17 @@ class WeekBaseSerializer(serializers.ModelSerializer):
 
 
 class WeekSerializer(WeekBaseSerializer):
-    week_days = WeekDaySerializer(many=True, read_only=True)
+    days = DaySerializer(many=True, read_only=True)
     num_days = serializers.SerializerMethodField(read_only=True)
     class Meta:
         model = Week
         fields = [           
             "num_days",
-            "week_days",
+            "days",
         ]
     
     def get_num_days(self, obj):
         return len(obj.week_days.values_list())
-
 
 
 class WeekDataSerializer(serializers.ModelSerializer):
