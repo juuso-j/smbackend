@@ -11,7 +11,8 @@ from eco_counter.models import (
     Station,
     HourData,
     Week, 
-    Day,  
+    Day,
+    DayData,  
     WeekData,
     Month, 
     MonthData,
@@ -51,7 +52,7 @@ class ImporterTest(TestCase):
         self.assertEqual(Station.objects.all().count(), NUM_STATIONS)
         # Test hourly data    
         # Auransilta is the only station that observes bicycles, pedestrains and cars
-        hour_data = HourData.objects.get(station__name="Auransilta", date=start_time)
+        hour_data = HourData.objects.get(station__name="Auransilta", day__date=start_time)
         res = [4 for x in range(24)]
         res_tot = [8 for x in range(24)]
         self.assertListEqual(hour_data.values_ap,res)
@@ -67,11 +68,12 @@ class ImporterTest(TestCase):
         # Test day data
         day = Day.objects.filter(date=start_time, station__name="Auransilta")[0]
         self.assertEqual(day.day_number, 3) # First day in 2020 in is wednesday
-        self.assertEqual(day.value_jp, 96)
-        day = Day.objects.filter(week__week_number=2, station__name="Auransilta")[0]
+        day_data = DayData.objects.filter(day__date=start_time, station__name="Auransilta")[0]
+        self.assertEqual(day_data.value_jp, 96)
+        day_data = DayData.objects.filter(day__week__week_number=2, station__name="Auransilta")[0]
+        self.assertEqual(day_data.value_jt, 96*2)
+        day = Day.objects.filter(date=dateutil.parser.parse("2020-01-06 00:00:00"), station__name="Auransilta")[0]
         self.assertEqual(day.day_number, 1) # First day in week 2 in 2020 is monday
-        self.assertEqual(day.value_jt, 96*2)
-       
         # Test week data      
         week_data =  WeekData.objects.filter(week__week_number=1)[0]
         week = Week.objects.filter(week_number=1)[0]        
@@ -93,7 +95,6 @@ class ImporterTest(TestCase):
         self.assertEqual(month_data.value_pp, jan_month_days*96)
         self.assertEqual(month_data.value_pk, jan_month_days*96)
         self.assertEqual(month_data.value_pt, jan_month_days*96*2)
-
         month = Month.objects.filter(month_number=2, year__year_number=2020)[0]
         num_month_days = month.days.all().count()
         feb_month_days = calendar.monthrange(month.year.year_number, month.month_number)[1]
@@ -102,7 +103,8 @@ class ImporterTest(TestCase):
         self.assertEqual(month_data.value_jp, feb_month_days*96)
         self.assertEqual(month_data.value_jk, feb_month_days*96)
         self.assertEqual(month_data.value_jt, feb_month_days*96*2)
-
+        # test that number of days match
+        self.assertEqual(Day.objects.filter(station__name="Auransilta").count(), jan_month_days+feb_month_days)
         year_data = YearData.objects.get(pk=1)       
         self.assertEqual(year_data.value_jp, jan_month_days*96+feb_month_days*96)
         # test state
@@ -127,9 +129,9 @@ class ImporterTest(TestCase):
         self.assertEqual(week.days.all().count(), NUM_STATIONS)
         # Test that we do not get multiple weeks
         self.assertEqual(Week.objects.filter(week_number=6).count(), NUM_STATIONS)
-        day = Day.objects.filter(week__week_number=10, station__name="Auransilta")[0]
-        self.assertEqual(day.day_number, 1) # First day in week 10 in 2020 is monday
-        self.assertEqual(day.value_jt, 96*2)
+        day_data = DayData.objects.filter(day__week__week_number=10, station__name="Auransilta")[0]
+        self.assertEqual(day_data.value_jt, 96*2)
+        
         # Test week in previous month
         week_data =  WeekData.objects.filter(week__week_number=8)[0]
         week = Week.objects.filter(week_number=8)[0]

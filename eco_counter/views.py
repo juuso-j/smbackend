@@ -16,7 +16,7 @@ from .serializers import (
 
 
 class HourDataViewSet(viewsets.ModelViewSet):
-    queryset = HourData.objects.all().order_by("date")
+    queryset = HourData.objects.all()#.order_by("date")
     serializer_class = HourDataSerializer
 
 

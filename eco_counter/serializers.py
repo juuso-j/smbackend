@@ -3,7 +3,8 @@ from .models import (
     HourData, 
     Station, 
     Week, 
-    Day, 
+    Day,
+    DayData, 
     WeekData,
     Month,
     MonthData)

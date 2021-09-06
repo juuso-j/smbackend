@@ -1,34 +1,37 @@
 """
 Brief explanation of the import alogithm:
-
-1. Read the csv file as a pandas DataFrame
-2. Reads the year and month from the ImportState.
-3. Sets the import to begin from that year and month, the import always begins
- from the first day of the month in state, i.e. the longest timespan that is 
- imported is one month and the shortest is 15min. Delete tables that will be 
- repopulated.
-4. Set the current state to state variables: current_years, currents_months, 
+1. Import the stations.
+2. Read the csv file as a pandas DataFrame
+3. Reads the year and month from the ImportState.
+4. Set the import to start from that year and month, the import always begins
+ from the first day and time 00:00:00 of the month in state, i.e. the longest
+ timespan that is imported is one month and the shortest is 15min, depending 
+ on the import state.
+5. Delete tables(HourData, Day, DayData and Week) that will be repopulated. *
+6. Set the current state to state variables: current_years, currents_months, 
  current_weeks, these dictionaries holds references to the model instances. 
- Every station has its own state variables, the key for the state variables
-  is the station.
-5. Iterate through all the rows
-    5.1 Read the time
-    5.2 Read the current year, month, week and day number
-    5.3 If Year number has changed, save year data and create new year 
-     instances with the new year and set to the current state.
-    5.4 If index % 4 == 0 save current hour, the input data has a sample rate
-     of 15min, and the precision stored while importing is One hour.
-    5.5 If day number has changed save day data.
-    5.5.1 If month number has changed save the current month data and 
-           create new instances and store the references to the state.
-    5.5.2 Create new day instances and update state
-    5.6 Iterate through all the columns, except the first that holds the time.
-    5.6.1 Stores the sampled data to current_hour state for every station, 
-         every mode of transportaion and direction.
-    5.7 If week has changed store week data, create new instances and update
-         state.
-6. Finally store all data in states that has not been saved.
-7. Save import state.
+ Every station has its own state variables and the key is the name of the station.
+7. Iterate through all the rows
+    7.1 Read the time
+    7.2 Read the current year, month, week and day number.  
+    7.3 If index % 4 == 0 save current hour to current_hours state, the input
+     data has a sample rateof 15min, and the precision stored while importing
+    is One hour.
+    7.4 If day number has changed save hourly and day data.
+    7.4.1 If Year, month or week number has changed. Save this data, create new tables
+          and update references to state variables.
+    7.4.2 Create new day tables using the current state variables(year, month week),
+          update day state variable. Create HourData tables and update current_hours 
+          state variable. HourData tables are the only tables that contains data that are
+          in the state, thus they are updated every fourth iteration. (15min samples to 1h)
+    8.6 Iterate through all the columns, except the first that holds the time.
+    8.6.1 Stores the sampled data to current_hour state for every station, 
+           every mode of transportaion and direction.   
+9. Finally store all data in states that has not been saved.
+10. Save import state.
+
+* If executed with the --delete-tables flag, the import will start from the beginning
+of the .csv file, 1.1.2020. 
 
 """
 
@@ -49,6 +52,7 @@ from eco_counter.models import (
     Station, 
     HourData,
     Day,
+    DayData,
     Week,     
     WeekData,
     Month, 
@@ -81,6 +85,7 @@ class Command(BaseCommand):
     
     def delete_tables(self):
         HourData.objects.all().delete()
+        DayData.objects.all().delete()
         Day.objects.all().delete()
         WeekData.objects.all().delete()
         Week.objects.all().delete()
@@ -132,36 +137,32 @@ class Command(BaseCommand):
             month = current_months[station]
             month_data = MonthData.objects.update_or_create(month=month,\
                  station=stations[station], year=current_years[station])[0]
-            qs = Day.objects.filter(month=month, month__year=current_years[station])
-            self.calc_and_save_cumulative_data(qs, month_data)
+            day_data = DayData.objects.filter(day__month=month)
+            self.calc_and_save_cumulative_data(day_data, month_data)
 
     def create_and_save_week_data(self, stations, current_weeks):
         for station in stations:
             week = current_weeks[station]
             week_data = WeekData.objects.update_or_create(week=week, station=stations[station])[0]
-            self.calc_and_save_cumulative_data(week.days.all(), week_data)
+            day_data = DayData.objects.filter(day__week=week)
+            self.calc_and_save_cumulative_data(day_data, week_data)
 
-    def create_and_save_day(self, stations, current_hours,current_day_number, current_weeks):
+    def create_and_save_day_data(self, stations, current_hours, current_days):
         for station in stations:
-            current_day = current_hours[station]
-            day = Day.objects.update_or_create(station=stations[station], \
-                date=current_day.date, week=current_weeks[station], month=current_day.month, \
-                    day_number=current_day_number)[0]                             
-            self.save_and_calc_day(current_day, day)    
-
-    def save_and_calc_day(self, current_day, day):
-        day.value_ak = sum(current_day.values_ak)
-        day.value_ap = sum(current_day.values_ap)
-        day.value_at = sum(current_day.values_at)
-        day.value_pk = sum(current_day.values_pk)
-        day.value_pp = sum(current_day.values_pp)
-        day.value_pt = sum(current_day.values_pt)
-        day.value_jk = sum(current_day.values_jk)
-        day.value_jp = sum(current_day.values_jp)
-        day.value_jt = sum(current_day.values_jt)
-        day.save()
-
-    def save_hour(self, current_hour, current_hours):
+            day_data = DayData.objects.create(station=stations[station], day=current_days[station])
+            current_hour = current_hours[station]
+            day_data.value_ak = sum(current_hour.values_ak)
+            day_data.value_ap = sum(current_hour.values_ap)
+            day_data.value_at = sum(current_hour.values_at)
+            day_data.value_pk = sum(current_hour.values_pk)
+            day_data.value_pp = sum(current_hour.values_pp)
+            day_data.value_pt = sum(current_hour.values_pt)
+            day_data.value_jk = sum(current_hour.values_jk)
+            day_data.value_jp = sum(current_hour.values_jp)
+            day_data.value_jt = sum(current_hour.values_jt)
+            day_data.save()
+   
+    def save_hour_data(self, current_hour, current_hours):
         for station in current_hour:                   
             hour_data = current_hours[station]            
             # Store "Auto"
@@ -194,7 +195,6 @@ class Command(BaseCommand):
         response = requests.get(STATIONS_URL)
         assert response.status_code == 200, "Fetching stations from {} , status code {}"\
             .format(STATIONS_URL, response.status_code)
-
         response_json = response.json()
         features = response_json["features"]
         saved = 0
@@ -209,7 +209,6 @@ class Command(BaseCommand):
                 station.geom = point
                 station.save()
                 saved += 1
-
         logger.info("Retrived {numloc} stations, saved {saved} stations.".\
             format(numloc=len(features), saved=saved))
 
@@ -237,8 +236,8 @@ class Command(BaseCommand):
             stations[station.name] = station     
         # state variable for the current hour that is calucalted for every iteration(15min)  
         current_hour = {}
-        # state variable for the crrent hours for the whole day (24).
         current_hours = {}
+        current_days = {}
         current_weeks = {}
         current_months = {}
         current_years = {}      
@@ -254,16 +253,15 @@ class Command(BaseCommand):
         prev_month_number = current_month_number
         prev_week_number = current_week_number
 
-        #All Hourly ,daily, weekly data from the current_month are delete thus they are repopulated         
-        
-        HourData.objects.filter(month__year__year_number=current_year_number, \
-            month__month_number=current_month_number).delete()
+        # All Hourly, daily and weekly data that are past the current_week_number
+        # are delete thus they are repopulated.  HourData and DayData are deleted
+        # thus their on_delete is models.CASCADE.     
         Day.objects.filter(month__month_number=current_month_number, \
             month__year__year_number=current_year_number).delete()        
         for week_number in range(current_week_number+1, current_week_number+5):          
             Week.objects.filter(week_number=week_number, year__year_number=current_year_number).delete()
            
-        # Set the current state before starting populating
+        # Set the references to the current state. 
         for station in stations:
             current_years[station] = Year.objects.get_or_create(station=stations[station], \
                 year_number=current_year_number)[0]           
@@ -285,30 +283,30 @@ class Command(BaseCommand):
 
             current_year_number, current_week_number, current_day_number = datetime.date(current_time).isocalendar()
             current_month_number = datetime.date(current_time).month
-            # Add new year table if year does exist for every station and add references to state(current_years)
-            if prev_year_number != current_year_number or not current_years:
-                # if we have a prev_year_number and it is not the current_year_number store yearly data.
-                if prev_year_number:                   
-                    self.create_and_save_year_data(stations, current_years)                       
-                for station in stations:
-                    year = Year.objects.create(year_number=current_year_number, station=stations[station])
-                    current_years[station] = year
-                prev_year_number = current_year_number               
-                  
-            #Adds data for an hour every fourth iteration, sample rate is 15min
-            # Add 1 to avoid modulo by 0
-            if (index) % 4 == 0:
-                self.save_hour(current_hour, current_hours)                
-                # Clear current_hour after storage, to get data for every hour
+       
+            #Adds data for an hour every fourth iteration, sample rate is 15min.
+            if index % 4 == 0:
+                self.save_hour_data(current_hour, current_hours)                
+                # Clear current_hour after storage, to get data for every hour.
                 current_hour = {}
             
             if prev_day_number != current_day_number or not current_hours:  
-                # Store the Day object that contains the daily csv_data(24 hour csv_data samples)
+                # Store hour data if data exists.
                 if current_hours:
-                    self.create_and_save_day(stations, current_hours, prev_day_number, current_weeks)                                  
+                    self.create_and_save_day_data(stations, current_hours, current_days)
                 current_hours = {}
-
-                # Save new month before creating days for correct relations
+                
+                # Year, month, week tables are created before the day tables 
+                # to ensure correct relations .            
+                if prev_year_number != current_year_number or not current_years:
+                    # if we have a prev_year_number and it is not the current_year_number store yearly data.
+                    if prev_year_number:                   
+                        self.create_and_save_year_data(stations, current_years)                       
+                    for station in stations:
+                        year = Year.objects.create(year_number=current_year_number, station=stations[station])
+                        current_years[station] = year
+                    prev_year_number = current_year_number              
+       
                 if prev_month_number != current_month_number or not current_months:
                     if  prev_month_number:  
                         self.create_and_save_month_data(stations, current_months, current_years)                 
@@ -316,26 +314,37 @@ class Command(BaseCommand):
                         month = Month.objects.create(station=stations[station],\
                             year=current_years[station], month_number=current_month_number)
                         current_months[station] = month                
-                    prev_month_number = current_month_number             
-                
-                for station in stations:                    
-                    hour_data = HourData.objects.create(date=current_time.date(), station=stations[station],\
-                         week=current_weeks[station], month=current_months[station], day_number=current_day_number)                   
-                    current_hours[station] = hour_data 
-                prev_day_number = current_day_number             
-           
-                     
-            # Build the current_hour dict by iterating all cols in row.
-            # current_hour dict store the rows in a structured form. 
-            # current_hour keys are stations and every field contains a dict with the type as its key
-            # Types are A|P|J(Auto, Pyöräilijä, Jalankulkija) and direction P|K , e.g. "JK"
-            # current_hour[station][station_type] = value, e.g. current_hour["TeatteriSilta"]["PK"] = 6
-            #Note the first col is the "aika" and is discarded, the rest are observations for every station
+                    prev_month_number = current_month_number 
+
+                if prev_week_number != current_week_number or not current_weeks:                                  
+                    if prev_week_number:
+                        self.create_and_save_week_data(stations, current_weeks)                 
+                    for station in stations:
+                        week = Week.objects.create(station=stations[station],\
+                            week_number=current_week_number, year=current_years[station])
+                        current_weeks[station] = week               
+                    prev_week_number = current_week_number                  
+                    
+                for station in stations:  
+                    day = Day.objects.create(station=stations[station], date=current_time,\
+                        day_number=current_day_number, week=current_weeks[station],\
+                             month=current_months[station], year=current_years[station])                  
+                    current_days[station] = day                    
+                    hour_data = HourData.objects.create(station=stations[station], day=current_days[station])
+                    current_hours[station] = hour_data
+                prev_day_number = current_day_number
+            """         
+            Build the current_hour dict by iterating all cols in row.
+            current_hour dict store the rows in a structured form. 
+            current_hour keys are the station names and every value contains a dict with the type as its key
+            The type is: A|P|J(Auto, Pyöräilijä, Jalankulkija) + direction P|K , e.g. "JK"
+            current_hour[station][station_type] = value, e.g. current_hour["TeatteriSilta"]["PK"] = 6
+            Note the first col is the "aika" and is discarded, the rest are observations for every station
+            """
             for column in self.columns[1:]: 
                 #Station type is always: A|P|J + K|P           
-                station_type = re.findall("[A-Z][A-Z]", column)[0]
-                station_name = column.replace(station_type,"").strip()                
-               
+                station_type = re.findall("[APJ][PK]", column)[0]
+                station_name = column.replace(station_type,"").strip()               
                 value = row[column]
                 if math.isnan(value):
                     value = 0               
@@ -345,22 +354,11 @@ class Command(BaseCommand):
                 if station_type in current_hour[station_name]:                                     
                     current_hour[station_name][station_type] = int(current_hour[station_name][station_type]) + value
                 else:
-                    current_hour[station_name][station_type] = value
-
-            if prev_week_number != current_week_number or not current_weeks:                                  
-                #if week changed store weekly data
-                if prev_week_number:
-                    self.create_and_save_week_data(stations, current_weeks)                 
-                for station in stations:
-                    week = Week.objects.create(station=stations[station],\
-                        week_number=current_week_number, year=current_years[station])
-                    current_weeks[station] = week                
-                    
-                prev_week_number = current_week_number 
+                    current_hour[station_name][station_type] = value           
         
         #Finally save hours, days, months etc. that are not fully populated.
-        self.save_hour(current_hour, current_hours)  
-        self.create_and_save_day(stations, current_hours,current_day_number, current_weeks)                                
+        self.save_hour_data(current_hour, current_hours)  
+        self.create_and_save_day_data(stations, current_hours, current_days)
         self.create_and_save_week_data(stations, current_weeks)                 
         self.create_and_save_month_data(stations, current_months, current_years)                 
         self.create_and_save_year_data(stations, current_years)                     
