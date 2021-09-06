@@ -122,8 +122,7 @@ class ImporterTest(TestCase):
         self.assertEqual(state.current_month_number,3)
         self.assertEqual(state.current_year_number, 2020)
         # test that number of days in weeks remains intact
-        week = Week.objects.filter(week_number=5)[0]        
-       
+        week = Week.objects.filter(week_number=5)[0]       
         self.assertEqual(week.days.all().count(), NUM_STATIONS)
         week = Week.objects.filter(week_number=6)[0]        
         self.assertEqual(week.days.all().count(), NUM_STATIONS)

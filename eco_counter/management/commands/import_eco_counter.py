@@ -1,7 +1,7 @@
 """
 Brief explanation of the import alogithm:
 1. Import the stations.
-2. Read the csv file as a pandas DataFrame
+2. Read the csv file as a pandas DataFrame.
 3. Reads the year and month from the ImportState.
 4. Set the import to start from that year and month, the import always begins
  from the first day and time 00:00:00 of the month in state, i.e. the longest
@@ -255,7 +255,7 @@ class Command(BaseCommand):
 
         # All Hourly, daily and weekly data that are past the current_week_number
         # are delete thus they are repopulated.  HourData and DayData are deleted
-        # thus their on_delete is models.CASCADE.     
+        # thus their on_delete is set to models.CASCADE.     
         Day.objects.filter(month__month_number=current_month_number, \
             month__year__year_number=current_year_number).delete()        
         for week_number in range(current_week_number+1, current_week_number+5):          
