@@ -6,14 +6,17 @@ app_name = "eco_counter"
 
 router = routers.SimpleRouter()
 router.register("stations", views.StationViewSet, basename="station")
-router.register("hour-data", views.HourDataViewSet, basename="hour-data")
-router.register("day-data", views.HourDataViewSet, basename="day-data")
-router.register("week-data", views.WeekDataViewSet, basename="week-data")
-router.register("month-data", views.MonthDataViewSet, basename="month-data")
 
-router.register("weeks", views.WeekViewSet, basename="week")
+router.register("hour_data", views.HourDataViewSet, basename="hour_data")
+router.register("day_data", views.DayDataViewSet, basename="day_data")
+router.register("week_data", views.WeekDataViewSet, basename="week_data")
+router.register("month_data", views.MonthDataViewSet, basename="month_data")
+router.register("yeard_data", views.YearDataViewSet, basename="year_data")
+
 router.register("days", views.DayViewSet, basename="days")
-router.register("months", views.MonthViewSet, basename="month")
+router.register("weeks", views.WeekViewSet, basename="weeks")
+router.register("months", views.MonthViewSet, basename="months")
+router.register("years", views.YearViewSet, basename="years")
 
 urlpatterns = [
     path("", include(router.urls)),

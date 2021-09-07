@@ -257,7 +257,7 @@ class Command(BaseCommand):
         # are delete thus they are repopulated.  HourData and DayData are deleted
         # thus their on_delete is set to models.CASCADE.     
         Day.objects.filter(month__month_number=current_month_number, \
-            month__year__year_number=current_year_number).delete()        
+            month__year__year_number=current_year_number).delete()                    
         for week_number in range(current_week_number+1, current_week_number+5):          
             Week.objects.filter(week_number=week_number, year__year_number=current_year_number).delete()
            
@@ -298,7 +298,7 @@ class Command(BaseCommand):
                 
                 # Year, month, week tables are created before the day tables 
                 # to ensure correct relations .            
-                if prev_year_number != current_year_number or not current_years:
+                if prev_year_number != current_year_number or not current_years or prev_year_number != current_year_number:
                     # if we have a prev_year_number and it is not the current_year_number store yearly data.
                     if prev_year_number:                   
                         self.create_and_save_year_data(stations, current_years)                       
@@ -354,7 +354,9 @@ class Command(BaseCommand):
                 if station_type in current_hour[station_name]:                                     
                     current_hour[station_name][station_type] = int(current_hour[station_name][station_type]) + value
                 else:
-                    current_hour[station_name][station_type] = value           
+                    current_hour[station_name][station_type] = value 
+            if current_years["Auransilta"].days.all().count()>366:
+                breakpoint()          
         
         #Finally save hours, days, months etc. that are not fully populated.
         self.save_hour_data(current_hour, current_hours)  

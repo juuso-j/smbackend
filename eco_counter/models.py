@@ -60,7 +60,6 @@ class Year(models.Model):
     year_number = models.PositiveSmallIntegerField(choices=YEAR_CHOICES,\
         default=datetime.now().year)
 
-
     def __str__(self):
         return "%s %s" % (self.id, self.year_number)
 
@@ -79,7 +78,7 @@ class Month(models.Model):
         return "%s %s" % (self.id, self.month_number)
     
     class Meta:
-        ordering = ["-month_number", "-year__year_number"]
+        ordering = ["-year__year_number", "-month_number"]
 
 class Week(models.Model):
     station = models.ForeignKey("Station", on_delete=models.CASCADE,\
@@ -93,7 +92,7 @@ class Week(models.Model):
         return "%s %s" % (self.id, self.week_number)
 
     class Meta:
-        ordering = ["-week_number", "-year__year_number"]
+        ordering = ["-year__year_number", "-week_number"]
 
 
 class Day(models.Model):
@@ -132,7 +131,7 @@ class MonthData(CounterData):
         related_name="month_data", null=True)
     
     class Meta:
-        ordering = ["-month__month_number", "-year__year_number"]
+        ordering = ["-year__year_number", "-month__month_number"]
 
 
 class WeekData(CounterData):
@@ -142,7 +141,8 @@ class WeekData(CounterData):
         related_name="week_data", null=True)
     
     class Meta:
-        ordering = ["-week__week_number", "-week__year__year_number"]
+        ordering = ["-week__year__year_number", "-week__week_number"]
+
 
 class DayData(CounterData):
     station = models.ForeignKey("Station", on_delete=models.CASCADE,\
@@ -152,6 +152,7 @@ class DayData(CounterData):
     
     class Meta:
         ordering = ["-day__date"]
+
 
 # Hourly data for a day
 class HourData(models.Model):    

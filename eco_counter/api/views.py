@@ -1,7 +1,7 @@
-from django.shortcuts import render
-import requests
+import sys
 
-from rest_framework import status, viewsets, mixins
+from django.db.models.query import QuerySet
+from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
@@ -22,51 +22,24 @@ from .serializers import (
     HourDataSerializer,
     DayDataSerializer,
     WeekDataSerializer,
-    MonthDataSerializer,
-    MonthSerializer,
+    MonthDataSerializer,    
     DaySerializer, 
     WeekSerializer,
+    MonthSerializer,
+    YearDataSerializer,
+    YearSerializer
 )
 
-
-#class HourDataViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
-class HourDataViewSet(viewsets.ReadOnlyModelViewSet):
-    
-    queryset = HourData.objects.all()
-    serializer_class = HourDataSerializer
-
-    @action(detail=False, methods=["get"])
-    def get_hour_data(self, request):
-        date = request.query_params.get("date", None)
-        station_id = request.query_params.get("station_id")
+def get_serialized_data_by_date(class_name, query_params):
+        data_class = getattr(sys.modules[__name__], class_name)
+        serializer_class = getattr(sys.modules[__name__], class_name+"Serializer")
+        date = query_params.get("date", None)
+        station_id = query_params.get("station_id", None)
         if date is None or station_id is None:
             return Response(status=status.HTTP_400_BAD_REQUEST)
-        queryset = HourData.objects.get(station_id=station_id, day__date=date)
-        serializer = HourDataSerializer(queryset, many=False)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-
-
-class DayDataViewSet(viewsets.ReadOnlyModelViewSet):
-    
-    queryset = DayData.objects.all().order_by("day__date")
-    serializer_class = DayDataSerializer
-
-    @action(detail=False, methods=["get"])
-    def get_day_data(self, request):
-        date = request.query_params.get("date", None)
-        station_id = request.query_params.get("station_id")
-        if date is None or station_id is None:
-            return Response(status=status.HTTP_400_BAD_REQUEST)
-        queryset = DayData.objects.get(station_id=station_id, day__date=date)
-        serializer = DayDataSerializer(queryset, many=False)
-        return Response(serializer.data, status=status.HTTP_200_OK)
-    
-
-class WeekDataViewSet(viewsets.ModelViewSet):
-    queryset = WeekData.objects.all().order_by("id")
-    serializer_class = WeekDataSerializer
-
-
+        queryset = data_class.objects.get(station_id=station_id, day__date=date)
+        serializer = serializer_class(queryset, many=False)
+        return serializer
 
 
 class StationViewSet(viewsets.ModelViewSet):
@@ -74,24 +47,94 @@ class StationViewSet(viewsets.ModelViewSet):
     serializer_class = StationSerializer
 
 
-class DayViewSet(viewsets.ModelViewSet):
-    queryset = Day.objects.all().order_by("date")
+class HourDataViewSet(viewsets.ReadOnlyModelViewSet):
+    
+    queryset = HourData.objects.all()
+    serializer_class = HourDataSerializer
+
+    @action(detail=False, methods=["get"])
+    def get_hour_data(self, request):
+        serializer = get_serialized_data_by_date("HourData", request.query_params)       
+        return Response(serializer.data, status=status.HTTP_200_OK)
+ 
+
+
+class DayDataViewSet(viewsets.ReadOnlyModelViewSet):
+    
+    queryset = DayData.objects.all()
+    serializer_class = DayDataSerializer
+
+    @action(detail=False, methods=["get"])
+    def get_day_data(self, request):
+        serializer = get_serialized_data_by_date("DayData", request.query_params)        
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=["get"])
+    def get_day_datas(self, request):
+        start_date = request.query_params.get("start_date", None)
+        end_date = request.query_params.get("end_date", None)
+        station_id = request.query_params.get("station_id", None)
+        if start_date is None or end_date is None or station_id is None:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        queryset = DayData.objects.filter(station_id=station_id, \
+            day__date__gte=start_date, day__date__lte=end_date).order_by("day__date")
+
+        serializer = DayDataSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+  
+
+class WeekDataViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = WeekData.objects.all()
+    serializer_class = WeekDataSerializer
+
+    @action(detail=False, methods=["get"])
+    def get_week_data(self, request):
+        week_number = request.query_params.get("week_number", None)
+        year_number = request.query_params.get("year_number", None)
+        station_id = request.query_params.get("station_id", None)
+        if week_number is None or year_number is None or station_id is None:
+            return Response(status=status.HTTP_400_BAD_REQUEST)
+        queryset = WeekData.objects.get(station_id=station_id,\
+            week__week_number=week_number, week__year__year_number=year_number)
+        serializer = WeekDataSerializer(queryset, many=False)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+
+class MonthDataViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = MonthData.objects.all()
+    serializer_class = MonthDataSerializer
+
+    @action(detail=False, methods=["get"])
+    def get_week_data(self, request):
+        serializer = get_serialized_data_by_date("MonthData", request.query_params)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+       
+
+class YearDataViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = YearData.objects.all()
+    serializer_class = YearDataSerializer
+
+
+class DayViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Day.objects.all()
     serializer_class = DaySerializer
     #get_weekday (loc_id, date)
 
 
-class WeekViewSet(viewsets.ModelViewSet):
-    queryset = Week.objects.all().order_by("week_number")
+class WeekViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Week.objects.all()
     serializer_class = WeekSerializer
     
 
-
-class MonthViewSet(viewsets.ModelViewSet):
+class MonthViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Month.objects.all()
     serializer_class = MonthSerializer
 
 
-class MonthDataViewSet(viewsets.ModelViewSet):
-    queryset = MonthData.objects.all()
-    serializer_class = MonthDataSerializer
+
+class YearViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = Year.objects.all()
+    serializer_class = YearSerializer
 

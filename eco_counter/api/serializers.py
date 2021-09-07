@@ -11,6 +11,15 @@ from ..models import (
     Month, 
     Year
 )
+VALUE_FIELDS = ["value_ak",
+                "value_ap",
+                "value_at",
+                "value_pk",
+                "value_pp",
+                "value_pt",
+                "value_jk",
+                "value_jp",
+                "value_jt"]
 
 class StationSerializer(serializers.ModelSerializer):
 
@@ -34,102 +43,203 @@ class StationSerializer(serializers.ModelSerializer):
         return obj.geom.y
 
 
-class HourDataSerializer(serializers.ModelSerializer):
-    
-    class Meta:
-        model = HourData
-        fields = "__all__"
-
-
-class DayDataSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = DayData
-        field = "__all__"
-
 
 class DaySerializer(serializers.ModelSerializer):
     
+    station_name = serializers.PrimaryKeyRelatedField(many=False, source="station.name", read_only=True)
     class Meta:
         model = Day
-        fields = "__all__"
+        fields = [
+            "id",
+            "station",
+            "station_name",
+            "date",
+            "day_number",
+            "week",
+            "month",
+            "year",
+            ]
 
 
-class WeekBaseSerializer(serializers.ModelSerializer):
+class DayInfoSerializer(serializers.ModelSerializer):
+    station_name = serializers.PrimaryKeyRelatedField(many=False, source="station.name", read_only=True)
+    class Meta:
+        model = Day
+        fields = [
+            "station_name",
+            "date", 
+            "day_number"
+            ]
 
-   class Meta:
+
+
+class WeekSerializer(serializers.ModelSerializer):
+    days = DaySerializer(many=True, read_only=True)
+    num_days = serializers.SerializerMethodField(read_only=True)
+    year_number = serializers.PrimaryKeyRelatedField(many=False, source="year.year_number", read_only=True)
+    station_name = serializers.PrimaryKeyRelatedField(many=False, source="station.name", read_only=True)
+
+    class Meta:
         model = Week
         fields = [
             "id",
             "station",
+            "station_name",
             "week_number",
-            #"year__year_number",
-        ]
-
-
-class WeekSerializer(WeekBaseSerializer):
-    days = DaySerializer(many=True, read_only=True)
-    num_days = serializers.SerializerMethodField(read_only=True)
-    class Meta:
-        model = Week
-        fields = [           
+            "year_number",      
             "num_days",
             "days",
         ]
     
     def get_num_days(self, obj):
-        return len(obj.week_days.values_list())
+        return len(obj.days.values_list())
+
+
+class WeekInfoSerializer(serializers.ModelSerializer):
+    year_number = serializers.PrimaryKeyRelatedField(many=False, source="year.year_number", read_only=True)
+    station_name = serializers.PrimaryKeyRelatedField(many=False, source="station.name", read_only=True)
+
+    class Meta:
+        model = Week
+        fields = [            
+            "station_name",
+            "week_number",
+            "year_number",
+        ]
+
+
+class MonthSerializer(serializers.ModelSerializer):
+    year_number = serializers.PrimaryKeyRelatedField(many=False, source="year.year_number", read_only=True)
+    num_days = serializers.SerializerMethodField(read_only=True)
+    station_name = serializers.PrimaryKeyRelatedField(many=False, source="station.name", read_only=True)
+
+    class Meta:
+        model = Month
+        fields = [
+            "id",
+            "station",
+            "station_name",
+            "month_number",
+            "year_number",
+            "num_days",
+            ]
+
+      
+    def get_num_days(self, obj):
+        return len(obj.days.values_list())
+
+
+class MonthInfoSerializer(serializers.ModelSerializer):
+    year_number=serializers.PrimaryKeyRelatedField(many=False, source="year.year_number", read_only=True)
+    station_name = serializers.PrimaryKeyRelatedField(many=False, source="station.name", read_only=True)
+
+    class Meta:
+        model = Month
+        fields = [
+            "station_name",
+            "month_number",
+            "year_number"
+            ]
+   
+
+class YearSerializer(serializers.ModelSerializer):
+    num_days = serializers.SerializerMethodField(read_only=True)
+    station_name = serializers.PrimaryKeyRelatedField(many=False, source="station.name", read_only=True)
+
+    class Meta:
+        model = Year
+        fields = [
+            "id", 
+            "station", 
+            "station_name",
+            "year_number",
+            "num_days",
+        ]
+    def get_num_days(self, obj):
+        return len(obj.days.values_list())
+
+
+class YearInfoSerializer(serializers.ModelSerializer):
+    station_name = serializers.PrimaryKeyRelatedField(many=False, source="station.name", read_only=True)
+
+    class Meta:
+        model = Year
+        fields = [
+            "station_name",
+            "year_number"
+            ]
+
+
+class HourDataSerializer(serializers.ModelSerializer):
+
+    day_info = DayInfoSerializer(source="day")
+    class Meta:
+        model = HourData
+        fields = [
+            "id",
+            "station",
+            "day_info",
+            "values_ak",
+            "values_ap",
+            "values_at",
+            "values_pk",
+            "values_pp",
+            "values_pt",
+            "values_jk",
+            "values_jp",
+            "values_jt"       
+            ] 
+
+
+class DayDataSerializer(serializers.ModelSerializer):
+
+    day_info = DayInfoSerializer(source="day")
+    class Meta:
+        model = DayData
+        fields = [
+            "id",
+            "station",
+            "day_info",         
+        ] + VALUE_FIELDS
 
 
 class WeekDataSerializer(serializers.ModelSerializer):
-    #week = serializers.PrimaryKeyRelatedField(many=False, queryset=Week.objects.all())
-    week_info = WeekBaseSerializer(source="week")
-    class Meta:
-        
+    week_info = WeekInfoSerializer(source="week")
+    class Meta:        
         model = WeekData
         fields = [
             "id",
             "station",
-            #"week",
-            "week_info",
-            "value_ak",
-            "value_ap",
-            "value_at",
-            "value_pk",
-            "value_pp",
-            "value_pt",
-            "value_jk",
-            "value_jp",
-            "value_jt",          
-            
-        ]
-
-    
-class MonthSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Month
-        fields = "__all__"
+            "week_info",                
+        ] + VALUE_FIELDS
 
 
 class MonthDataSerializer(serializers.ModelSerializer):
-    month_info = MonthSerializer(source="month")
-    class Meta:
-        
+
+    month_info = MonthInfoSerializer(source="month")
+    class Meta:        
         model = MonthData
         fields = [
             "id",
-            "location",
+            "station",
             "month_info",
-            "value_ak",
-            "value_ap",
-            "value_at",
-            "value_pk",
-            "value_pp",
-            "value_pt",
-            "value_jk",
-            "value_jp",
-            "value_jt",          
-            
-        ]
+        ] + VALUE_FIELDS
+
+
+class YearDataSerializer(serializers.ModelSerializer):
+
+    year_info = YearInfoSerializer(source="year")    
+    class Meta:        
+        model = YearData
+        fields = [
+            "id",
+            "station",
+            "year_info",
+        ] + VALUE_FIELDS
+
+
+
+
+
+
 
