@@ -5,7 +5,7 @@ from django.contrib.gis.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
 
 START_YEAR = 2020
-YEAR_CHOICES = [(r,r) for r in range(2020, datetime.now().year+1)]
+YEAR_CHOICES = [(r,r) for r in range(START_YEAR, datetime.now().year+1)]
 
 
 class SingletonModel(models.Model):
@@ -60,11 +60,17 @@ class Year(models.Model):
     year_number = models.PositiveSmallIntegerField(choices=YEAR_CHOICES,\
         default=datetime.now().year)
 
+    @property
+    def num_days(self):
+        return self.days.all().count()
+
+
     def __str__(self):
-        return "%s %s" % (self.id, self.year_number)
+        return "%s" % (self.year_number)
 
     class Meta:
         ordering = ["-year_number"]
+
 
 class Month(models.Model):
     station = models.ForeignKey("Station", on_delete=models.CASCADE,\
@@ -74,8 +80,12 @@ class Month(models.Model):
     month_number = models.PositiveSmallIntegerField(validators=\
         [MinValueValidator(1), MaxValueValidator(12)], default=1)
     
+    @property
+    def num_days(self):
+        return self.days.all().count()
+
     def __str__(self):
-        return "%s %s" % (self.id, self.month_number)
+        return "%s" % (self.month_number)
     
     class Meta:
         ordering = ["-year__year_number", "-month_number"]
@@ -85,14 +95,17 @@ class Week(models.Model):
         related_name="weeks")
     week_number = models.PositiveSmallIntegerField(validators=\
         [MinValueValidator(1), MaxValueValidator(53)])
-    year = models.ForeignKey("Year", on_delete=models.CASCADE,\
-         related_name="weeks", null=True)
+    years = models.ManyToManyField(Year)
+
+    @property
+    def num_days(self):
+        return self.days.all().count()
 
     def __str__(self):
-        return "%s %s" % (self.id, self.week_number)
+        return "%s" % (self.week_number)
 
-    class Meta:
-        ordering = ["-year__year_number", "-week_number"]
+    # class Meta:
+    #     ordering = ["-years__year_number", "-week_number"]
 
 
 class Day(models.Model):
@@ -140,8 +153,8 @@ class WeekData(CounterData):
     week = models.ForeignKey("Week", on_delete=models.CASCADE, \
         related_name="week_data", null=True)
     
-    class Meta:
-        ordering = ["-week__year__year_number", "-week__week_number"]
+    # class Meta:
+    #     ordering = ["-week__year__year_number", "-week__week_number"]
 
 
 class DayData(CounterData):

@@ -258,10 +258,10 @@ class Command(BaseCommand):
         # are delete thus they are repopulated.  HourData and DayData are deleted
         # thus their on_delete is set to models.CASCADE.     
         Day.objects.filter(month__month_number=current_month_number, \
-            month__year__year_number=current_year_number).delete()                    
-        for week_number in range(current_week_number+1, current_week_number+5):          
-            Week.objects.filter(week_number=week_number, year__year_number=current_year_number).delete()
-           
+            month__year__year_number=current_year_number).delete() 
+        for week_number in range(current_week_number+1, current_week_number+5):   
+            Week.objects.filter(week_number=week_number, years__year_number=current_year_number).delete()
+       
         # Set the references to the current state. 
         for station in stations:
             current_years[station] = Year.objects.get_or_create(station=stations[station], \
@@ -269,8 +269,9 @@ class Command(BaseCommand):
             current_months[station] = Month.objects.get_or_create(station=stations[station], \
                 year=current_years[station], month_number=current_month_number)[0]            
             current_weeks[station] = Week.objects.get_or_create(station=stations[station],\
-                year=current_years[station], week_number=current_week_number)[0]
-           
+                week_number=current_week_number)[0]
+            current_weeks[station].years.add(current_years[station])
+ 
         for index, row in csv_data.iterrows():           
             #print(" . " + str(index), end = "")
             try:
@@ -308,6 +309,7 @@ class Command(BaseCommand):
                     for station in stations:
                         year = Year.objects.create(year_number=current_year_number, station=stations[station])
                         current_years[station] = year
+                        current_weeks[station].years.add(year)
                     prev_year_number = current_year_number              
        
                 if prev_month_number != current_month_number or not current_months:
@@ -324,7 +326,8 @@ class Command(BaseCommand):
                         self.create_and_save_week_data(stations, current_weeks)                 
                     for station in stations:
                         week = Week.objects.create(station=stations[station],\
-                            week_number=current_week_number, year=current_years[station])
+                            week_number=current_week_number)
+                        week.years.add(current_years[station])
                         current_weeks[station] = week               
                     prev_week_number = current_week_number                  
                     
@@ -336,6 +339,7 @@ class Command(BaseCommand):
                     hour_data = HourData.objects.create(station=stations[station], day=current_days[station])
                     current_hours[station] = hour_data
                 prev_day_number = current_day_number
+            
             """         
             Build the current_hour dict by iterating all cols in row.
             current_hour dict store the rows in a structured form. 
