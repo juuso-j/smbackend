@@ -67,13 +67,13 @@ class ImporterTest(TestCase):
         
         # Test day data
         day = Day.objects.filter(date=start_time, station__name="Auransilta")[0]
-        self.assertEqual(day.day_number, 3) # First day in 2020 in is wednesday
+        self.assertEqual(day.day_number, 2) # First day in 2020 in is wednesday
         day_data = DayData.objects.filter(day__date=start_time, station__name="Auransilta")[0]
         self.assertEqual(day_data.value_jp, 96)
         day_data = DayData.objects.filter(day__week__week_number=2, station__name="Auransilta")[0]
         self.assertEqual(day_data.value_jt, 96*2)
         day = Day.objects.filter(date=dateutil.parser.parse("2020-01-06 00:00:00"), station__name="Auransilta")[0]
-        self.assertEqual(day.day_number, 1) # First day in week 2 in 2020 is monday
+        self.assertEqual(day.day_number, 0) # First day in week 2 in 2020 is monday
         # Test week data      
         week_data =  WeekData.objects.filter(week__week_number=1)[0]
         week = Week.objects.filter(week_number=1)[0]        

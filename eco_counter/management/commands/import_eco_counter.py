@@ -248,7 +248,8 @@ class Command(BaseCommand):
         current_month_number = import_state.current_month_number
         current_day_number = None
 
-        current_week_number, prev_day_number = datetime.date(start_time).isocalendar()[1:]
+        current_week_number = int(start_time.strftime("%-V"))
+        prev_day_number = start_time.weekday()
         prev_year_number = current_year_number
         prev_month_number = current_month_number
         prev_week_number = current_week_number
@@ -281,7 +282,9 @@ class Command(BaseCommand):
                 #For some reason raises sometimes AmibiousTimeError for times that seems to be ok. e.g. 2020-03-29 03:45:00
                 logging.warning("AmibiguousTimeError at time: " + str(current_time) + " Err: " + str(err))
 
-            current_year_number, current_week_number, current_day_number = datetime.date(current_time).isocalendar()
+            current_year_number = current_time.year
+            current_week_number = int(current_time.strftime("%-V"))
+            current_day_number = current_time.weekday()
             current_month_number = datetime.date(current_time).month
        
             #Adds data for an hour every fourth iteration, sample rate is 15min.
@@ -298,7 +301,7 @@ class Command(BaseCommand):
                 
                 # Year, month, week tables are created before the day tables 
                 # to ensure correct relations .            
-                if prev_year_number != current_year_number or not current_years or prev_year_number != current_year_number:
+                if prev_year_number != current_year_number or not current_years:
                     # if we have a prev_year_number and it is not the current_year_number store yearly data.
                     if prev_year_number:                   
                         self.create_and_save_year_data(stations, current_years)                       
