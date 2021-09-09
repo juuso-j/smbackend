@@ -246,10 +246,10 @@ class Command(BaseCommand):
         rows_imported = import_state.rows_imported
         current_year_number = import_state.current_year_number 
         current_month_number = import_state.current_month_number
-        current_day_number = None
+        current_weekday_number = None
 
         current_week_number = int(start_time.strftime("%-V"))
-        prev_day_number = start_time.weekday()
+        prev_weekday_number = start_time.weekday()
         prev_year_number = current_year_number
         prev_month_number = current_month_number
         prev_week_number = current_week_number
@@ -268,10 +268,9 @@ class Command(BaseCommand):
                 year_number=current_year_number)[0]           
             current_months[station] = Month.objects.get_or_create(station=stations[station], \
                 year=current_years[station], month_number=current_month_number)[0]            
-            current_weeks[station] = Week.objects.get_or_create(station=stations[station],\
-                week_number=current_week_number)[0]
+            current_weeks[station] = Week.objects.get_or_create(station=stations[station], week_number=current_week_number, years__year_number=current_year_number)[0]
             current_weeks[station].years.add(current_years[station])
- 
+          
         for index, row in csv_data.iterrows():           
             #print(" . " + str(index), end = "")
             try:
@@ -285,7 +284,7 @@ class Command(BaseCommand):
 
             current_year_number = current_time.year
             current_week_number = int(current_time.strftime("%-V"))
-            current_day_number = current_time.weekday()
+            current_weekday_number = current_time.weekday()
             current_month_number = datetime.date(current_time).month
        
             #Adds data for an hour every fourth iteration, sample rate is 15min.
@@ -294,7 +293,7 @@ class Command(BaseCommand):
                 # Clear current_hour after storage, to get data for every hour.
                 current_hour = {}
             
-            if prev_day_number != current_day_number or not current_hours:  
+            if prev_weekday_number != current_weekday_number or not current_hours:  
                 # Store hour data if data exists.
                 if current_hours:
                     self.create_and_save_day_data(stations, current_hours, current_days)
@@ -333,12 +332,12 @@ class Command(BaseCommand):
                     
                 for station in stations:  
                     day = Day.objects.create(station=stations[station], date=current_time,\
-                        day_number=current_day_number, week=current_weeks[station],\
+                        weekday_number=current_weekday_number, week=current_weeks[station],\
                              month=current_months[station], year=current_years[station])                  
                     current_days[station] = day                    
                     hour_data = HourData.objects.create(station=stations[station], day=current_days[station])
                     current_hours[station] = hour_data
-                prev_day_number = current_day_number
+                prev_weekday_number = current_weekday_number
             
             """         
             Build the current_hour dict by iterating all cols in row.
@@ -362,8 +361,6 @@ class Command(BaseCommand):
                     current_hour[station_name][station_type] = int(current_hour[station_name][station_type]) + value
                 else:
                     current_hour[station_name][station_type] = value 
-            if current_years["Auransilta"].days.all().count()>366:
-                breakpoint()          
         
         #Finally save hours, days, months etc. that are not fully populated.
         self.save_hour_data(current_hour, current_hours)  

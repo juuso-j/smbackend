@@ -44,7 +44,7 @@ class ImporterTest(TestCase):
     starting point as in the real data.
     """
     def test_import(self):  
-        return      
+        #return      
         start_time = dateutil.parser.parse("2020-01-01 00:00:00")
         end_time = dateutil.parser.parse("2020-02-29 23:45:45")
         
@@ -67,13 +67,13 @@ class ImporterTest(TestCase):
         
         # Test day data
         day = Day.objects.filter(date=start_time, station__name="Auransilta")[0]
-        self.assertEqual(day.day_number, 2) # First day in 2020 in is wednesday
+        self.assertEqual(day.weekday_number, 2) # First day in 2020 in is wednesday
         day_data = DayData.objects.filter(day__date=start_time, station__name="Auransilta")[0]
         self.assertEqual(day_data.value_jp, 96)
         day_data = DayData.objects.filter(day__week__week_number=2, station__name="Auransilta")[0]
         self.assertEqual(day_data.value_jt, 96*2)
         day = Day.objects.filter(date=dateutil.parser.parse("2020-01-06 00:00:00"), station__name="Auransilta")[0]
-        self.assertEqual(day.day_number, 0) # First day in week 2 in 2020 is monday
+        self.assertEqual(day.weekday_number, 0) # First day in week 2 in 2020 is monday
         # Test week data      
         week_data =  WeekData.objects.filter(week__week_number=1)[0]
         week = Week.objects.filter(week_number=1)[0]  
@@ -106,7 +106,7 @@ class ImporterTest(TestCase):
         self.assertEqual(month_data.value_jt, feb_month_days*96*2)
         # test that number of days match
         self.assertEqual(Day.objects.filter(station__name="Auransilta").count(), jan_month_days+feb_month_days)
-        year_data = YearData.objects.get(pk=1)       
+        year_data = YearData.objects.get(station__name="Auransilta", year__year_number=2020)       
         self.assertEqual(year_data.value_jp, jan_month_days*96+feb_month_days*96)
         # test state
         state = ImportState.load()

@@ -112,7 +112,7 @@ class Day(models.Model):
     station = models.ForeignKey("Station", on_delete=models.CASCADE, \
         related_name="day", null=True)  
     date = models.DateField(default=now)
-    day_number = models.PositiveSmallIntegerField(validators=\
+    weekday_number = models.PositiveSmallIntegerField(validators=\
         [MinValueValidator(1), MaxValueValidator(7)], default=1)
     week = models.ForeignKey("Week", on_delete=models.CASCADE,\
          related_name="days", null=True)

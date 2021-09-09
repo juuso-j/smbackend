@@ -21,8 +21,8 @@ from eco_counter.models import (
     )
 
 # connect to redis
-r = redis.Redis(host="localhost", port="6379", db="0")
-@override_settings(CACHES=settings.TEST_CACHES)
+#r = redis.Redis(host="localhost", port="6379", db="0")
+#@override_settings(CACHES=settings.TEST_CACHES)
 
 class EcoCounterTest(APITestCase):
 
@@ -37,19 +37,20 @@ class EcoCounterTest(APITestCase):
         )
         return out.getvalue()
 
-    # @classmethod
-    # def setUpClass(cls):
-    #     super(EcoCounterTest, cls).setUpClass()
-    #     start_time = dateutil.parser.parse("2020-01-01 00:00:00")
-    #     end_time = dateutil.parser.parse("2020-02-29 23:45:45")        
-    #     out = cls.import_command(cls, test_mode=(start_time, end_time))
-    #     cls.client = APIClient()
-
-    def setUp(self):
-        self.client = APIClient()
+    @classmethod
+    def setUpClass(cls):
+        super(EcoCounterTest, cls).setUpClass()
+        start_time = dateutil.parser.parse("2020-01-01 00:00:00")
+        end_time = dateutil.parser.parse("2020-02-29 23:45:45")        
+        out = cls.import_command(cls, test_mode=(start_time, end_time))
+        cls.client = APIClient()
+        print("Setupclass")
+    # def setUp(self):
+    #     self.client = APIClient()
+    #     print("setUP")
     def test_hour(self):
-        response = self.client.get("/api/hour_data/")
-        breakpoint()
+        response = self.client.get("http://127.0.0.1:8000/v2/hour_data/")
+        #breakpoint()
 
 
     
