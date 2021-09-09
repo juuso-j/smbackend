@@ -73,7 +73,7 @@ class DaySerializer(serializers.ModelSerializer):
             "station",
             "station_name",
             "date",
-            "day_number",
+            "weekday_number",
             "week",
             "month",
             "year",
@@ -87,7 +87,7 @@ class DayInfoSerializer(serializers.ModelSerializer):
         fields = [
             "station_name",
             "date", 
-            "day_number"
+            "weekday_number"
             ]
 
 
