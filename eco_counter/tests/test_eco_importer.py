@@ -18,6 +18,8 @@ from eco_counter.models import (
     ImportState
     )
 
+TEST_STATION_NAME = "Auransilta"
+
 def import_command(*args, **kwargs):
         out = StringIO()
         call_command(
@@ -28,6 +30,7 @@ def import_command(*args, **kwargs):
             **kwargs,
         )
         return out.getvalue()
+
 @pytest.mark.django_db
 def test_importer():
     """
@@ -42,11 +45,11 @@ def test_importer():
     out = import_command(test_mode=(start_time, end_time))
 
     num_stations = Station.objects.all().count()
-    assert Station.objects.get(name="Auransilta") 
+    assert Station.objects.get(name=TEST_STATION_NAME) 
     
     # Test hourly data    
-    # Auransilta is the only station that observes bicycles, pedestrains and cars
-    hour_data = HourData.objects.get(station__name="Auransilta", day__date=start_time)
+    #TEST_STAION_NAMEis the only station that observes bicycles, pedestrains and cars
+    hour_data = HourData.objects.get(station__name=TEST_STATION_NAME, day__date=start_time)
     res = [4 for x in range(24)]
     res_tot = [8 for x in range(24)]
     assert hour_data.values_ap == res
@@ -59,13 +62,13 @@ def test_importer():
     assert hour_data.values_jp == res 
     assert hour_data.values_jt == res_tot     
     # Test day data
-    day = Day.objects.filter(date=start_time, station__name="Auransilta")[0]
+    day = Day.objects.filter(date=start_time, station__name=TEST_STATION_NAME)[0]
     assert day.weekday_number == 2 # First day in 2020 in is wednesday
-    day_data = DayData.objects.filter(day__date=start_time, station__name="Auransilta")[0]
+    day_data = DayData.objects.filter(day__date=start_time, station__name=TEST_STATION_NAME)[0]
     assert day_data.value_jp == 96
-    day_data = DayData.objects.filter(day__week__week_number=2, station__name="Auransilta")[0]
+    day_data = DayData.objects.filter(day__week__week_number=2, station__name=TEST_STATION_NAME)[0]
     assert day_data.value_jt == 96*2
-    day = Day.objects.filter(date=dateutil.parser.parse("2020-01-06 00:00:00"), station__name="Auransilta")[0]
+    day = Day.objects.filter(date=dateutil.parser.parse("2020-01-06 00:00:00"), station__name=TEST_STATION_NAME)[0]
     assert day.weekday_number == 0 # First day in week 2 in 2020 is monday
 
     # Test week data      
@@ -100,9 +103,10 @@ def test_importer():
     assert month_data.value_jk == feb_month_days*96
     assert month_data.value_jt== feb_month_days*96*2
     # test that number of days match
-    assert Day.objects.filter(station__name="Auransilta").count() == jan_month_days+feb_month_days
-    year_data = YearData.objects.get(station__name="Auransilta", year__year_number=2020)       
+    assert Day.objects.filter(station__name=TEST_STATION_NAME).count() == jan_month_days+feb_month_days
+    year_data = YearData.objects.get(station__name=TEST_STATION_NAME, year__year_number=2020)       
     assert year_data.value_jp == jan_month_days*96+feb_month_days*96
+    assert Year.objects.get(station__name=TEST_STATION_NAME, year_number=2020) 
     # test state
     state = ImportState.load()
     assert state.current_month_number == 2
@@ -125,7 +129,7 @@ def test_importer():
     # Test that we do not get multiple weeks
     assert Week.objects.filter(week_number=6).count() == num_stations
     assert WeekData.objects.filter(week__week_number=6).count() == num_stations
-    day_data = DayData.objects.filter(day__week__week_number=10, station__name="Auransilta")[0]
+    day_data = DayData.objects.filter(day__week__week_number=10, station__name=TEST_STATION_NAME)[0]
     assert day_data.value_jt == 96*2
     # Test week in previous month
     week_data =  WeekData.objects.filter(week__week_number=8)[0]
@@ -148,7 +152,9 @@ def test_importer():
     # Test new year
     start_time = dateutil.parser.parse("2021-09-01 00:00:00")
     end_time = dateutil.parser.parse("2021-09-30 23:45:45")        
-    out = import_command(test_mode=(start_time, end_time))    
+    out = import_command(test_mode=(start_time, end_time))      
+    assert Year.objects.get(station__name=TEST_STATION_NAME, year_number=2020) 
+    assert Year.objects.get(station__name=TEST_STATION_NAME, year_number=2021)   
     week_data =  WeekData.objects.filter(week__week_number=35,week__years__year_number=2021)[0]
     week = Week.objects.filter(week_number=35, years__year_number=2020)[0]        
     assert week.days.count() == 5 #  week 35 in 2021 has only 5 days.
@@ -185,3 +191,4 @@ def test_importer():
     weeks =Week.objects.filter(week_number=1, years__year_number=2021)
     assert len(weeks), num_stations
     assert weeks[0].days.all().count() == 7
+   

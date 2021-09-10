@@ -47,6 +47,7 @@ def get_serialized_data_by_date(class_name, query_params):
         serializer = serializer_class(queryset, many=False)
         return serializer
 
+
 class StationViewSet(viewsets.ModelViewSet):
     queryset = Station.objects.all()
     serializer_class = StationSerializer
