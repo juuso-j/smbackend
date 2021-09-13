@@ -1,10 +1,8 @@
 import sys
-
 from django.db.models.query import QuerySet
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
-
 from ..models import (
     Station,
     HourData, 
@@ -48,7 +46,7 @@ def get_serialized_data_by_date(class_name, query_params):
         return serializer
 
 
-class StationViewSet(viewsets.ModelViewSet):
+class StationViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Station.objects.all()
     serializer_class = StationSerializer
 
@@ -105,8 +103,7 @@ class WeekDataViewSet(viewsets.ReadOnlyModelViewSet):
             week__week_number=week_number, week__years__year_number=year_number)
         serializer = WeekDataSerializer(queryset, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
-     
-
+ 
     @action(detail=False, methods=["get"])
     def get_week_datas(self, request):
         start_week_number = request.query_params.get("start_week_number", None)

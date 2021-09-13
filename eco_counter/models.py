@@ -37,7 +37,10 @@ class Station(models.Model):
     
     def __str__(self):
         return "%s %s" % (self.name, self.geom)
-
+    
+    class Meta:
+        ordering = ["id"]
+        
 
 class CounterData(models.Model):
     value_ak = models.PositiveIntegerField(default=0)
@@ -103,9 +106,8 @@ class Week(models.Model):
 
     def __str__(self):
         return "%s" % (self.week_number)
-
-    # class Meta:
-    #     ordering = ["-years__year_number", "-week_number"]
+    class Meta:
+        ordering = ["-week_number"]
 
 
 class Day(models.Model):
@@ -152,10 +154,8 @@ class WeekData(CounterData):
         related_name="week_data", null=True)    
     week = models.ForeignKey("Week", on_delete=models.CASCADE, \
         related_name="week_data", null=True)
-    
-    # class Meta:
-    #     ordering = ["-week__year__year_number", "-week__week_number"]
-
+    class Meta:
+        ordering = ["-week__week_number"]
 
 class DayData(CounterData):
     station = models.ForeignKey("Station", on_delete=models.CASCADE,\

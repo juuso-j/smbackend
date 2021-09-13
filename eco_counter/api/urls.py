@@ -4,8 +4,8 @@ from . import views
 
 app_name = "eco_counter"
 
-router = routers.SimpleRouter()
-router.register("stations", views.StationViewSet, basename="station")
+router = routers.DefaultRouter()
+router.register("stations", views.StationViewSet, basename="stations")
 
 router.register("hour_data", views.HourDataViewSet, basename="hour_data")
 router.register("day_data", views.DayDataViewSet, basename="day_data")
@@ -19,5 +19,5 @@ router.register("months", views.MonthViewSet, basename="months")
 router.register("years", views.YearViewSet, basename="years")
 
 urlpatterns = [
-    path("", include(router.urls)),
+    path("", include(router.urls), name="eco-counter"),
 ]

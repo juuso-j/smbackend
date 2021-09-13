@@ -92,7 +92,6 @@ class DayInfoSerializer(serializers.ModelSerializer):
 
 
 class WeekSerializer(serializers.ModelSerializer):
-    days = DaySerializer(many=True, read_only=True)
     years = YearInfoSerializer(many=True, read_only=True)
 
     station_name = serializers.PrimaryKeyRelatedField(many=False, source="station.name", read_only=True)
@@ -106,7 +105,6 @@ class WeekSerializer(serializers.ModelSerializer):
             "week_number",
             "years", 
             "num_days",
-            "days",
         ]
     
 
