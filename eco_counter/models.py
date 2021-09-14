@@ -67,7 +67,6 @@ class Year(models.Model):
     def num_days(self):
         return self.days.all().count()
 
-
     def __str__(self):
         return "%s" % (self.year_number)
 
