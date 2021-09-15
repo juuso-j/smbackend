@@ -47,7 +47,6 @@ from datetime import datetime, timedelta
 from django.utils.timezone import make_aware
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib.gis.geos import Point
-
 from eco_counter.models import (
     Station, 
     HourData,
@@ -253,7 +252,8 @@ class Command(BaseCommand):
         prev_year_number = current_year_number
         prev_month_number = current_month_number
         prev_week_number = current_week_number
-
+        current_time = None
+        prev_time = None
         # All Hourly, daily and weekly data that are past the current_week_number
         # are delete thus they are repopulated.  HourData and DayData are deleted
         # thus their on_delete is set to models.CASCADE.     
@@ -274,14 +274,18 @@ class Command(BaseCommand):
         for index, row in csv_data.iterrows():           
             #print(" . " + str(index), end = "")
             try:
-                current_time = dateutil.parser.parse(row["aika"]) # 2021-08-23 00:00:00
+                try:
+                    current_time = dateutil.parser.parse(row["aika"]) # 2021-08-23 00:00:00
+                except dateutil.parser._parser.ParserError:
+                    # If malformed time
+                    current_time = prev_time+timedelta(minutes=15)
+                    current_time = current_time.replace(tzinfo=None)
                 current_time = make_aware(current_time)
             except pytz.exceptions.NonExistentTimeError as err:                           
                 logging.warning("NonExistentTimeError at time: " + str(current_time) + " Err: " + str(err))
             except pytz.exceptions.AmbiguousTimeError as err:
                 #For some reason raises sometimes AmibiousTimeError for times that seems to be ok. e.g. 2020-03-29 03:45:00
                 logging.warning("AmibiguousTimeError at time: " + str(current_time) + " Err: " + str(err))
-
             current_year_number = current_time.year
             current_week_number = int(current_time.strftime("%-V"))
             current_weekday_number = current_time.weekday()
@@ -352,7 +356,7 @@ class Command(BaseCommand):
                 station_type = re.findall("[APJ][PK]", column)[0]
                 station_name = column.replace(station_type,"").strip()               
                 value = row[column]
-                if math.isnan(value):
+                if not isinstance(value, int):                
                     value = 0               
                 if station_name not in current_hour:
                     current_hour[station_name]={}
@@ -361,7 +365,7 @@ class Command(BaseCommand):
                     current_hour[station_name][station_type] = int(current_hour[station_name][station_type]) + value
                 else:
                     current_hour[station_name][station_type] = value 
-        
+            prev_time = current_time
         #Finally save hours, days, months etc. that are not fully populated.
         self.save_hour_data(current_hour, current_hours)  
         self.create_and_save_day_data(stations, current_hours, current_days)
@@ -377,10 +381,11 @@ class Command(BaseCommand):
 
     def add_arguments(self, parser):
         parser.add_argument(           
-            "--delete-tables",
+            "--initial-import",
             action="store_true",
             default=False,
-            help="Deletes tables before importing. Importing starts from row 0.",
+            help="Deletes all tables before importing. Imports stations and\
+                 starts importing from row 0.",
         )
         parser.add_argument(            
             "--test-mode", 
@@ -391,12 +396,11 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        if  options["delete_tables"]:
+        if  options["initial_import"]:
             logger.info("Deleting tables")
             self.delete_tables()
-
-        logger.info("Retrieving stations...")
-        self.save_locations()      
+            logger.info("Retrieving stations...")
+            self.save_locations()      
         logger.info("Retrieving observations...")
         csv_data = self.get_dataframe()
         start_time = None
