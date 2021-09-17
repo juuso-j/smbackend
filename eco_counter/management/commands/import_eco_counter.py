@@ -1,4 +1,10 @@
 """
+Usage:
+For initial import or changes in the stations:
+python manage.py import-eco-counter --initial-import
+otherwise for incremental import:
+python manage.py import-eco-counter
+
 Brief explanation of the import alogithm:
 1. Import the stations.
 2. Read the csv file as a pandas DataFrame.
@@ -392,7 +398,7 @@ class Command(BaseCommand):
             type=int,
             nargs="+",
             default=False,
-            help="Run script in test mode.",
+            help="Run script in test mode. Uses Generated pandas dataframe.",
         )
 
     def handle(self, *args, **options):
@@ -406,6 +412,7 @@ class Command(BaseCommand):
         start_time = None
         if options["test_mode"]:
             logger.info("Retrieving observations in test mode.")
+            self.save_locations()      
             start_time = options["test_mode"][0]
             csv_data = self.gen_test_csv(csv_data.keys(), start_time, options["test_mode"][1]) 
         else:
