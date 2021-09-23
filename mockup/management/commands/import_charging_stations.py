@@ -1,13 +1,13 @@
+import os
 import requests
 import logging
 import json
+from datetime import datetime
 from django.core.management import BaseCommand
 from django import db
-from django.contrib.gis.geos import Point, Polygon, geometry
+from django.contrib.gis.geos import Point, Polygon
 from django.contrib.contenttypes.models import ContentType
-from mockup.models import Unit, UNIT_TYPES
-from mockup.models import PointGeometry
-from mockup.models import ChargingStationContent
+from mockup.models import Unit, Geometry, ChargingStationContent
 
 logger = logging.getLogger()
 
@@ -28,46 +28,89 @@ def get_filtered_json(json_data):
     geometry_data = fetch_json(GEOMETRY_URL.format(id=GEOMETRY_ID)) 
     polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])
     out_data = []
+    wkid = json_data["spatialReference"]["wkid"]
+
     for data in json_data["features"]:
         lon = data["geometry"].get("x",0)
         lat = data["geometry"].get("y",0)
         point = Point(lon, lat)
         if polygon.intersects(point):
             out_data.append(data)
-    return out_data
+    return wkid, out_data
         
-#@db.transaction.atomic    
-def to_database(json_data):
+@db.transaction.atomic    
+def to_database(json_data, wkid):
     for data in json_data:
+        is_active = True
+        content_type = Unit.CHARGING_STATION       
         lon = data["geometry"].get("x",0)
         lat = data["geometry"].get("y",0)
-        geometry = PointGeometry.objects.create(geometry=Point(lon,lat))
-        attributes = data["attributes"]
+        point = Point(lon,lat, srid=wkid)
+        attributes = data.get("attributes", None)
+        if not attributes:
+            continue
+
         name = attributes.get("NAME", "")
         address = attributes.get("ADDRESS", "")
         url = attributes.get("URL", "")
-        charger_type = attributes.get("TYPE", "")
+        charger_type = attributes.get("TYPE", "")        
+        unit = Unit.objects.create(
+            is_active=is_active,
+            content_type=content_type
+        )
         content = ChargingStationContent.objects.create(
-            name=name, 
+            unit=unit,
+            name=name,
             address=address,
             url=url,
             charger_type=charger_type
         )
-        unit1 = Unit.objects.create(content=content)
-        unit2 = Unit.objects.create(geometry=geometry)
-        Unit.objects.update_or_create(content_id=content.pk, content_type=ContentType.objects.get_for_model(ChargingStationContent))
-        breakpoint()
-        unit, created = Unit.objects.update_or_create(
-            is_active=True, 
-            geometry=geometry, 
-            content=content
+        geometry = Geometry.objects.create(
+            unit=unit,
+            geometry=point
         )
-          
-   
+        # if content_created:
+        #     # get with type and id, if exists. add mofiied, else create
+        #     unit = Unit.objects.get(content=content)
 
-class Command(BaseCommand):
+
+
+     
+        
+        # breakpoint()
+        # unit1 = Unit.objects.create(content=content)
+        #unit2 = Unit.objects.create(geometry=geometry)
+        #unit3, created = Unit.objects.update_or_create(type=0,is_active=True, content_id=content.pk, content_type=ContentType.objects.get_for_model(ChargingStationContent))
+        # breakpoint()
+        # unit = Unit.objects.get(content=content)
+        # breakpoint()
+
+        # unit, created = Unit.objects.update_or_create(
+        #     is_active=True, 
+        #     geometry=geometry, 
+        #     content=content
+        # )
+          
+def delete_tables():
+    Unit.objects.filter(content_type=Unit.CHARGING_STATION).delete()
     
-    def handle(self, *args, **kwargs):
-        json_data = fetch_json(CHARGING_STATIONS_URL)
-        filtered_json = get_filtered_json(json_data)
-        to_database(filtered_json)
+class Command(BaseCommand):
+
+    def add_arguments(self, parser):
+        parser.add_argument(            
+            "--test-mode",             
+            nargs="+",
+            default=False,
+            help="Run script in test mode. Uses Generated pandas dataframe.",
+        )       
+    
+    def handle(self, *args, **options):
+        delete_tables()
+        if options["test_mode"]:
+            # TODO get current working directory
+            f = open(os.getcwd()+"/mockup/tests/"+options["test_mode"], "r")
+            json_data = json.load(f)
+        else:
+            json_data = fetch_json(CHARGING_STATIONS_URL)
+        wkid, filtered_json = get_filtered_json(json_data)
+        to_database(filtered_json, wkid)

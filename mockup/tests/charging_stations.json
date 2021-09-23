@@ -1,0 +1,101 @@
+{
+	"objectIdFieldName": "OBJECTID",
+	"uniqueIdField": {
+		"name": "OBJECTID",
+		"isSystemMaintained": true
+	},
+	"globalIdFieldName": "",
+	"geometryType": "esriGeometryPoint",
+	"spatialReference": {
+		"wkid": 4326,
+		"latestWkid": 4326
+	},
+	"fields": [{
+		"name": "LOCATION_ID",
+		"type": "esriFieldTypeInteger",
+		"alias": "LOCATION_ID",
+		"sqlType": "sqlTypeOther",
+		"domain": null,
+		"defaultValue": null
+	}, {
+		"name": "NAME",
+		"type": "esriFieldTypeString",
+		"alias": "NAME",
+		"sqlType": "sqlTypeOther",
+		"length": 0,
+		"domain": null,
+		"defaultValue": null
+	}, {
+		"name": "ADDRESS",
+		"type": "esriFieldTypeString",
+		"alias": "ADDRESS",
+		"sqlType": "sqlTypeOther",
+		"length": 0,
+		"domain": null,
+		"defaultValue": null
+	}, {
+		"name": "URL",
+		"type": "esriFieldTypeString",
+		"alias": "URL",
+		"sqlType": "sqlTypeOther",
+		"length": 0,
+		"domain": null,
+		"defaultValue": null
+	}, {
+		"name": "OBJECTID",
+		"type": "esriFieldTypeOID",
+		"alias": "OBJECTID",
+		"sqlType": "sqlTypeOther",
+		"domain": null,
+		"defaultValue": null
+	}, {
+		"name": "TYPE",
+		"type": "esriFieldTypeString",
+		"alias": "TYPE",
+		"sqlType": "sqlTypeOther",
+		"length": 0,
+		"domain": null,
+		"defaultValue": null
+	}],
+	"features": [{
+		"attributes": {
+			"LOCATION_ID": 1,
+			"NAME": "ABC Tammisilta Paimio",
+			"ADDRESS": "Länsiportti 1, 21530 Paimio",
+			"URL": "https://latauskartta.fi/latauspiste/1/ABC+Tammisilta+Paimio/",
+			"OBJECTID": 1,
+			"TYPE": "Tesla Supercharger"
+		},
+		"geometry": {
+			"x": 22.6055,
+			"y": 60.443
+		}
+	}, {
+		"attributes": {
+			"LOCATION_ID": 2,
+			"NAME": "ABC Toijala",
+			"ADDRESS": "Satamatie 43, 37800 Akaa",
+			"URL": "https://latauskartta.fi/latauspiste/2/ABC+Toijala/",
+			"OBJECTID": 2,
+			"TYPE": "Tesla Supercharger"
+		},
+		"geometry": {
+			"x": 23.8855,
+			"y": 61.1811
+		}
+	}, {
+		"attributes": {
+			"LOCATION_ID": 17,
+			"NAME": "Turku Test",
+			"ADDRESS": "Test address 20200",
+			"URL": "www.turku.fi",
+			"OBJECTID": 6,
+			"TYPE": "CCS"
+		},
+		"geometry": {
+			"x": 22.4817,
+			"y": 60.0175
+		}
+
+	}]
+}

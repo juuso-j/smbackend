@@ -1,6 +1,7 @@
-from .unit import Unit, UNIT_TYPES
+from .unit import Unit
 from .geometry import (
-    PointGeometry, 
+    Geometry,
+    PointGeometry,     
     LineStringGeometry,
     PolygonGeometry,
     MultiPolygonGeometry,    
