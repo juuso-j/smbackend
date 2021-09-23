@@ -103,7 +103,7 @@ class Command(BaseCommand):
 
     def get_dataframe(self):
         response = requests.get(OBSERATIONS_URL) 
-        assert response.status_code == 200, "Fetching observations csv {} status code {}".\
+        assert response.status_code == 200, "Fetching observations csv {} status code: {}".\
             format(OBSERATIONS_URL, response.status_code)
         string_data = response.content
         csv_data = pd.read_csv(io.StringIO(string_data.decode('utf-8')))
@@ -210,7 +210,7 @@ class Command(BaseCommand):
                 station.name = name
                 lon = feature["geometry"]["coordinates"][0]
                 lat = feature["geometry"]["coordinates"][1]
-                point = Point(lat, lon)
+                point = Point(lat, lon, srid=4326)
                 station.geom = point
                 station.save()
                 saved += 1
@@ -402,7 +402,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        if  options["initial_import"]:
+        if options["initial_import"]:
             logger.info("Deleting tables")
             self.delete_tables()
             logger.info("Retrieving stations...")
