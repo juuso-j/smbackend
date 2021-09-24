@@ -1,51 +1,45 @@
 import os
-import requests
 import logging
 import json
-from datetime import datetime
+#from datetime import datetime
 from django.core.management import BaseCommand
 from django import db
 from django.contrib.gis.geos import Point, Polygon
 from django.contrib.contenttypes.models import ContentType
 from mockup.models import Unit, Geometry, ChargingStationContent
-
-logger = logging.getLogger()
+from .utils import fetch_json, delete_tables, GEOMETRY_URL
+logger = logging.getLogger("django")
 
 CHARGING_STATIONS_URL = "https://services1.arcgis.com/rhs5fjYxdOG1Et61/ArcGIS/rest/services/ChargingStations/FeatureServer/0/query?f=json&where=1%20%3D%201%20OR%201%20%3D%201&returnGeometry=true&spatialRel=esriSpatialRelIntersects&outFields=LOCATION_ID%2CNAME%2CADDRESS%2CURL%2COBJECTID%2CTYPE"
-GAS_STATIONS_URL = "https://services1.arcgis.com/rhs5fjYxdOG1Et61/ArcGIS/rest/services/GasFillingStations/FeatureServer/0/query?f=json&where=1%3D1&outFields=OPERATOR%2CLAT%2CLON%2CSTATION_NAME%2CADDRESS%2CCITY%2CZIP_CODE%2CLNG_CNG%2CObjectId"
 
 #GEOMETRY_URL = "https://data.foli.fi/geojson/bounds" # contains the boundries for location filtering
-GEOMETRY_ID = 11 #  11 Varsinaissuomi # 10 Uusim
-GEOMETRY_URL = "https://tie.digitraffic.fi/api/v3/data/traffic-messages/area-geometries?id={id}&lastUpdated=false"
 
-def fetch_json(url):
-    response = requests.get(url)
-    assert response.status_code == 200, "Fetching charging stations: {} status code: {}".\
-            format(CHARGING_STATIONS_URL, response.status_code)
-    return response.json()
 
 def get_filtered_json(json_data):
-    geometry_data = fetch_json(GEOMETRY_URL.format(id=GEOMETRY_ID)) 
+    geometry_data = fetch_json(GEOMETRY_URL) 
     polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])
     out_data = []
-    wkid = json_data["spatialReference"]["wkid"]
-
+    #wkid = json_data["spatialReference"]["wkid"]
+    
     for data in json_data["features"]:
         lon = data["geometry"].get("x",0)
         lat = data["geometry"].get("y",0)
         point = Point(lon, lat)
         if polygon.intersects(point):
             out_data.append(data)
-    return wkid, out_data
+    logger.info("Filtered: {} charging stations by location to: {}."\
+        .format(len(json_data["features"]), len(out_data)))
+        
+    return out_data
         
 @db.transaction.atomic    
-def to_database(json_data, wkid):
+def save_to_database(json_data):
     for data in json_data:
         is_active = True
         content_type = Unit.CHARGING_STATION       
         lon = data["geometry"].get("x",0)
         lat = data["geometry"].get("y",0)
-        point = Point(lon,lat, srid=wkid)
+        point = Point(lon,lat)
         attributes = data.get("attributes", None)
         if not attributes:
             continue
@@ -69,6 +63,7 @@ def to_database(json_data, wkid):
             unit=unit,
             geometry=point
         )
+    logger.info("Saved charging stations to database.")
         # if content_created:
         #     # get with type and id, if exists. add mofiied, else create
         #     unit = Unit.objects.get(content=content)
@@ -91,8 +86,6 @@ def to_database(json_data, wkid):
         #     content=content
         # )
           
-def delete_tables():
-    Unit.objects.filter(content_type=Unit.CHARGING_STATION).delete()
     
 class Command(BaseCommand):
 
@@ -105,12 +98,16 @@ class Command(BaseCommand):
         )       
     
     def handle(self, *args, **options):
-        delete_tables()
+        logger.info("Importing charging stations.")
         if options["test_mode"]:
+            logger.info("Running charging_station_importer in test mode.")
             # TODO get current working directory
             f = open(os.getcwd()+"/mockup/tests/"+options["test_mode"], "r")
             json_data = json.load(f)
         else:
+            logger.info("Fetcing charging stations from: {}"\
+                .format(CHARGING_STATIONS_URL))
             json_data = fetch_json(CHARGING_STATIONS_URL)
-        wkid, filtered_json = get_filtered_json(json_data)
-        to_database(filtered_json, wkid)
+        filtered_json = get_filtered_json(json_data)
+        delete_tables(Unit.CHARGING_STATION)
+        save_to_database(filtered_json)

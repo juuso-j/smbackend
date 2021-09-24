@@ -1,10 +1,7 @@
 from .unit import Unit
-from .geometry import (
-    Geometry,
-    PointGeometry,     
-    LineStringGeometry,
-    PolygonGeometry,
-    MultiPolygonGeometry,    
-)
+from .geometry import Geometry
 
-from .content import ChargingStationContent
+from .content import (
+    ChargingStationContent,
+    GasFillingStationContent
+)

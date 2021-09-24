@@ -1,6 +1,4 @@
 import enum
-# from mockup.models.geometry import MultiPolygonGeometry
-# from mockup.management.commands.import_charging_stations import CHARGING_STATIONS_URL, GAS_STATIONS_URL
 from django.contrib.gis.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -28,11 +26,11 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 class Unit(models.Model):
 
     CHARGING_STATION = "CS"
-    GAS_STATION = "GS"
+    GAS_FILLING_STATION = "GFS"
 
     CONTENT_TYPES = [
         (CHARGING_STATION, "ChargingStation"),
-        (GAS_STATION, "GasStation"),
+        (GAS_FILLING_STATION, "GasFillingStation"),
     ]
 
     POINTGEOMETRY = "PT"
@@ -57,7 +55,7 @@ class Unit(models.Model):
     # last_modified_time = models.DateTimeField(
     #     auto_now=True
     # )    
-    content_type = models.CharField(max_length=2, choices=CONTENT_TYPES, null=True)
+    content_type = models.CharField(max_length=3, choices=CONTENT_TYPES, null=True)
     #geometry_type = models.CharField(max_length=3, choices=GEOMETRY_TYPES, null=True)
     # content_type = models.ForeignKey(
     #     ContentType, 

@@ -1,3 +1,4 @@
+from mockup.models.content import GasFillingStationContent
 from services.api import UnitSerializer
 from eco_counter.api import serializers
 from rest_framework import status, viewsets
@@ -13,6 +14,9 @@ from .serializers import(
     UnitSerializer,
     GeometrySerializer,
     ChargingStationContentSerializer,
+    ChargingStationSerializer,
+    GasFillingStationContentSerializer,
+    GasFillingStationSerializer,
 )
 
 
@@ -20,12 +24,20 @@ class UnitViewSet(viewsets.ReadOnlyModelViewSet):
     
     queryset = Unit.objects.all()
     serializer_class = UnitSerializer
+    
     @action(detail=False, methods=["get"])
     def get_charging_stations(self, request):
-        queryset = Unit.objects.filter(content_type=Unit.CHARGING_STATION)
-        breakpoint()
-        pass
-
+        queryset = Geometry.objects.filter(unit__content_type=Unit.CHARGING_STATION)
+        #serializer = ChargingStationContentSerializer(queryset, many=True)
+        serializer = ChargingStationSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+    
+    @action(detail=False, methods=["get"])
+    def get_gas_filling_stations(self, request):
+        queryset = Geometry.objects.filter(unit__content_type=Unit.GAS_FILLING_STATION)
+        serializer = GasFillingStationSerializer(queryset, many=True)
+        return Response(serializer.data, status=status.HTTP_200_OK)
+  
 
 class GeometryViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Geometry.objects.all()
@@ -35,3 +47,7 @@ class GeometryViewSet(viewsets.ReadOnlyModelViewSet):
 class ChargingStationContentViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ChargingStationContent.objects.all()
     serializer_class = ChargingStationContentSerializer
+
+class GasFillingStationtContentViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = GasFillingStationContent.objects.all()
+    serializer_class = GasFillingStationContentSerializer

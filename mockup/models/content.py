@@ -28,11 +28,11 @@ class ChargingStationContent(Station):
     #   )
 
 
-class GasStationContent(Station):
+class GasFillingStationContent(Station):
     lng_cng = models.CharField(max_length=10, null=True)
     operator = models.CharField(max_length=30, null=True)
     unit = models.OneToOneField(
         Unit, 
-        related_name="gas_station_content",
+        related_name="gas_filling_station_content",
         on_delete=models.CASCADE, 
         null=True)

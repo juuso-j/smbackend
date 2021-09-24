@@ -5,36 +5,18 @@ from . import Unit
 
 
 class Geometry(models.Model):
-    geometry = models.GeometryField(null=True)
-    unit = models.OneToOneField(
+    # More about EPSG:3879 https://epsg.io/3879
+    #geometry = models.GeometryField(srid=3879, null=True)
+    geometry = models.GeometryField(srid=4326, null=True)
+ 
+    unit = models.ForeignKey(
         Unit, 
         related_name="geometries",
         on_delete=models.CASCADE, 
         null=True
-    )
+    )   
 
-# Various geometry classes
-class PointGeometry(models.Model):
-    geometry = models.PointField()
-    unit = models.OneToOneField(
-        Unit, 
-        related_name="point_geometries",
-        on_delete=models.CASCADE, 
-        null=True)
-   
-
-class PolygonGeometry(models.Model):
-    geometry = models.PolygonField()
-    unit = models.OneToOneField(
-        Unit, 
-        related_name="polygon_geometries",
-        on_delete=models.CASCADE, 
-        null=True)
-   
-
-class MultiPolygonGeometry(models.Model):
-    geometry = models.MultiPolygonField()
+    def __str__(self):
+        return str(self.geometry)
 
 
-class LineStringGeometry(models.Model):
-    geometry = models.LineStringField()
