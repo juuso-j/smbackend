@@ -69,7 +69,6 @@ from eco_counter.models import (
 
 STATIONS_URL = "https://dev.turku.fi/datasets/ecocounter/liikennelaskimet.geojson"
 OBSERATIONS_URL = "https://dev.turku.fi/datasets/ecocounter/2020/counters-15min.csv"
-GK25_SRID = 3879
 # TODO create logger for this module!!!
 logger = logging.getLogger("django")
 
@@ -196,7 +195,7 @@ class Command(BaseCommand):
                 hour_data.values_jt.append(tot)  
             hour_data.save()
 
-    def save_locations(self):
+    def save_stations(self):
         response = requests.get(STATIONS_URL)
         assert response.status_code == 200, "Fetching stations from {} , status code {}"\
             .format(STATIONS_URL, response.status_code)
@@ -210,7 +209,7 @@ class Command(BaseCommand):
                 station.name = name
                 lon = feature["geometry"]["coordinates"][0]
                 lat = feature["geometry"]["coordinates"][1]
-                point = Point(lat, lon, srid=4326)
+                point = Point(lon, lat, srid=4326)
                 station.geom = point
                 station.save()
                 saved += 1
@@ -406,13 +405,13 @@ class Command(BaseCommand):
             logger.info("Deleting tables")
             self.delete_tables()
             logger.info("Retrieving stations...")
-            self.save_locations()      
+            self.save_stations()      
         logger.info("Retrieving observations...")
         csv_data = self.get_dataframe()
         start_time = None
         if options["test_mode"]:
             logger.info("Retrieving observations in test mode.")
-            self.save_locations()      
+            self.save_stations()      
             start_time = options["test_mode"][0]
             csv_data = self.gen_test_csv(csv_data.keys(), start_time, options["test_mode"][1]) 
         else:

@@ -1,4 +1,5 @@
 from rest_framework import serializers
+from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from ..models import (
     Station,
     HourData, 
@@ -21,19 +22,16 @@ VALUE_FIELDS = ["value_ak",
                 "value_jp",
                 "value_jt"]
 
-class StationSerializer(serializers.ModelSerializer):
+class StationSerializer(GeoFeatureModelSerializer):
 
-    lat = serializers.SerializerMethodField(read_only=True)
-    lon = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Station
+        geo_field="geom"
         fields = [
             "id",
             "name",
-            "geom",
-            "lat",
-            "lon",
+            "geom",  
             ]
 
     def get_lat(self, obj):
