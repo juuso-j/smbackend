@@ -50,6 +50,7 @@ import re
 import pandas as pd 
 import dateutil.parser
 from datetime import datetime, timedelta
+from django.conf import settings
 from django.utils.timezone import make_aware
 from django.core.management.base import BaseCommand, CommandError
 from django.contrib.gis.geos import Point
@@ -210,6 +211,7 @@ class Command(BaseCommand):
                 lon = feature["geometry"]["coordinates"][0]
                 lat = feature["geometry"]["coordinates"][1]
                 point = Point(lon, lat, srid=4326)
+                point.transform(settings.DEFAULT_SRID)
                 station.geom = point
                 station.save()
                 saved += 1

@@ -3,8 +3,7 @@ from django.utils.timezone import now
 from django.contrib.postgres.fields import ArrayField
 from django.contrib.gis.db import models
 from django.core.validators import MaxValueValidator, MinValueValidator
-
-GK25_SRID = 3879
+from django.conf import settings
 
 START_YEAR = 2020
 YEAR_CHOICES = [(r,r) for r in range(START_YEAR, datetime.now().year+1)]
@@ -35,7 +34,7 @@ class ImportState(SingletonModel):
 
 class Station(models.Model):    
     name = models.CharField(max_length=30)
-    geom = models.PointField(srid=4326)
+    geom = models.PointField(srid=settings.DEFAULT_SRID)
     
     def __str__(self):
         return "%s %s" % (self.name, self.geom)
