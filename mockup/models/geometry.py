@@ -1,14 +1,25 @@
 from django.contrib.gis.db import models
 from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.gis.geos import geometry
+from django.conf import settings
 from . import Unit
 
 
 class Geometry(models.Model):
-    # More about EPSG:3879 https://epsg.io/3879
-    #geometry = models.GeometryField(srid=3879, null=True)
-    geometry = models.GeometryField(srid=4326, null=True)
- 
+    
+    """
+    Portions of the earth’s surface may projected onto a two-dimensional, 
+    or Cartesian, plane. Projected coordinate systems are especially convenient
+    for region-specific applications, e.g., if you know that your database 
+    will only cover geometries in North Kansas, then you may consider using 
+    rojection system specific to that region. Moreover, projected coordinate 
+    systems are defined in Cartesian units (such as meters or feet), easing 
+    distance calculations.
+    """
+    # More about EPSG:3879 https://epsg.io/3067
+    
+    geometry = models.GeometryField(srid=settings.DEFAULT_SRID, null=True)
+
     unit = models.ForeignKey(
         Unit, 
         related_name="geometries",

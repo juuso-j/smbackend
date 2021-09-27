@@ -5,7 +5,7 @@ import json
 from django.core.management import BaseCommand
 from django import db
 from django.contrib.gis.geos import Point, Polygon
-from django.contrib.contenttypes.models import ContentType
+from django.conf import settings
 from mockup.models import Unit, Geometry, ChargingStationContent
 from .utils import fetch_json, delete_tables, GEOMETRY_URL
 logger = logging.getLogger("django")
@@ -19,8 +19,7 @@ def get_filtered_json(json_data):
     geometry_data = fetch_json(GEOMETRY_URL) 
     polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])
     out_data = []
-    #wkid = json_data["spatialReference"]["wkid"]
-    
+    srid = json_data["spatialReference"]["wkid"]
     for data in json_data["features"]:
         lon = data["geometry"].get("x",0)
         lat = data["geometry"].get("y",0)
@@ -30,20 +29,23 @@ def get_filtered_json(json_data):
     logger.info("Filtered: {} charging stations by location to: {}."\
         .format(len(json_data["features"]), len(out_data)))
         
-    return out_data
+    return srid, out_data
         
 @db.transaction.atomic    
-def save_to_database(json_data):
+def save_to_database(json_data, srid):
+
     for data in json_data:
         is_active = True
-        content_type = Unit.CHARGING_STATION       
-        lon = data["geometry"].get("x",0)
-        lat = data["geometry"].get("y",0)
-        point = Point(lon,lat)
+        content_type = Unit.CHARGING_STATION 
+        geometry = data.get("geometry", None)
         attributes = data.get("attributes", None)
-        if not attributes:
+        if not attributes or not geometry:
             continue
 
+        x = geometry.get("x",0)
+        y = geometry.get("y",0)         
+        point = Point(x,y, srid=srid) 
+        point.transform(settings.DEFAULT_SRID)    
         name = attributes.get("NAME", "")
         address = attributes.get("ADDRESS", "")
         url = attributes.get("URL", "")
@@ -64,14 +66,7 @@ def save_to_database(json_data):
             geometry=point
         )
     logger.info("Saved charging stations to database.")
-        # if content_created:
-        #     # get with type and id, if exists. add mofiied, else create
-        #     unit = Unit.objects.get(content=content)
-
-
-
-     
-        
+            
         # breakpoint()
         # unit1 = Unit.objects.create(content=content)
         #unit2 = Unit.objects.create(geometry=geometry)
@@ -108,6 +103,6 @@ class Command(BaseCommand):
             logger.info("Fetcing charging stations from: {}"\
                 .format(CHARGING_STATIONS_URL))
             json_data = fetch_json(CHARGING_STATIONS_URL)
-        filtered_json = get_filtered_json(json_data)
+        srid, filtered_json = get_filtered_json(json_data)
         delete_tables(Unit.CHARGING_STATION)
-        save_to_database(filtered_json)
+        save_to_database(filtered_json, srid)

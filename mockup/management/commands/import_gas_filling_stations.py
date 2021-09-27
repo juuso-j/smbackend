@@ -4,6 +4,7 @@ import logging
 from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
 from django.core.management import BaseCommand
 from django import db
+from django.conf import settings
 
 from mockup.models import Unit, Geometry, GasFillingStationContent
 from .utils import fetch_json,delete_tables, GEOMETRY_URL
@@ -16,7 +17,7 @@ def get_filtered_json(json_data):
     geometry_data = fetch_json(GEOMETRY_URL) 
     polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])
     out_data = []
-    #wkid = json_data["spatialReference"]["wkid"]
+    srid = json_data["spatialReference"]["wkid"]
     for data in json_data["features"]:
         lon = data["attributes"].get("LON",0)
         lat = data["attributes"].get("LAT",0)
@@ -25,26 +26,30 @@ def get_filtered_json(json_data):
             out_data.append(data)
     logger.info("Filtered: {} gas filling stations by location to: {}."\
         .format(len(json_data["features"]), len(out_data)))
-    return out_data
+    return srid, out_data
 
 @db.transaction.atomic    
-def save_to_database(json_data):
+def save_to_database(json_data, srid):
     #print(wkid)
     for data in json_data:
         is_active = True
         content_type = Unit.GAS_FILLING_STATION 
-        lon = data["geometry"].get("x",0)
-        lat = data["geometry"].get("y",0)
-        point = Point(lon,lat)
         attributes = data.get("attributes", None)
-        if not attributes:
+        geometry = data.get("geometry", None)
+        if not attributes or not geometry:
             continue
 
+        x = geometry.get("x",0)
+        y = geometry.get("y",0) 
+        # NOTE, hack to fix srid 102100 causes "crs not found"
+        srid = 3857    
+        point = Point(x,y,srid=srid)
+        point.transform(settings.DEFAULT_SRID)
         name = attributes.get("STATION_NAME", "")
         address = attributes.get("ADDRESS", "")
         zip_code = attributes.get("ZIP_CODE", "")
         city = attributes.get("CITY", "")
-        address += ", "+zip_code + " " + city
+        address += ", " + zip_code + " " + city
         operator = attributes.get("OPERATOR", "")
         lng_cng = attributes.get("LNG_CNG", "")        
         unit = Unit.objects.create(
@@ -86,6 +91,6 @@ class Command(BaseCommand):
             logger.info("Fetcing gas filling stations from: {}"\
                 .format(GAS_FILLING_STATIONS_URL))
             json_data = fetch_json(GAS_FILLING_STATIONS_URL)
-        filtered_json = get_filtered_json(json_data)
+        srid, filtered_json = get_filtered_json(json_data)
         delete_tables(Unit.GAS_FILLING_STATION)
-        save_to_database(filtered_json)
+        save_to_database(filtered_json, srid)
