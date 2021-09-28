@@ -22,41 +22,40 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 #     gas_station = 2
     
 
-
-class Unit(models.Model):
-
-    CHARGING_STATION = "CS"
+class ContentTypes(models.Model):
+    CHARGING_STATION = "CGS"
     GAS_FILLING_STATION = "GFS"
+    CONTENT_TYPES = {
+        CHARGING_STATION: "ChargingStation",
+        GAS_FILLING_STATION: "GasFillingStation",
+    }
+    short_name = models.CharField(
+        max_length=3, 
+        choices= [(k,v) for k,v in CONTENT_TYPES.items()], 
+        null=True
+        )
+    name = models.CharField(max_length=32, null=True)
+    class_name = models.CharField(max_length=32, null=True)
+    description = models.TextField(null=True)
 
-    CONTENT_TYPES = [
-        (CHARGING_STATION, "ChargingStation"),
-        (GAS_FILLING_STATION, "GasFillingStation"),
-    ]
 
-    POINTGEOMETRY = "PT"
-    POLYGONGEOMETRY = "PY"
-    LINESTRINGGEOMETRY = "LS"
-    MULTIPOINTGEOMETRY = "MP"
-    MULTIPOLYGONGEOMETRY = "MPY"
-    MULTILINESTRINGGEOMETRY = "MLS"
-
-    GEOMETRY_TYPES = (
-        (POINTGEOMETRY, "PointGeometry"),
-        (POLYGONGEOMETRY, "PolygonGeometry"),
-        (LINESTRINGGEOMETRY, "LineStringGeometry"),
-        (MULTIPOINTGEOMETRY, "MultiPointGeometry"),
-        (MULTIPOLYGONGEOMETRY, "MultiPolygonGeometry"),
-        (MULTILINESTRINGGEOMETRY, "MultiLineStringGeometry"),
-    )
+class Unit(models.Model):  
+  
+  
     is_active = models.BooleanField(default=True)
     created_time = models.DateTimeField(
         auto_now_add=True
     )
-    # last_modified_time = models.DateTimeField(
-    #     auto_now=True
-    # )    
-    content_type = models.CharField(max_length=3, choices=CONTENT_TYPES, null=True)
-    #geometry_type = models.CharField(max_length=3, choices=GEOMETRY_TYPES, null=True)
+    content_type = models.ForeignKey(ContentTypes,on_delete=models.CASCADE, null=True, related_name="units")
+    
+   
+    
+    # content_type = models.CharField(
+    #     max_length=3, 
+    #     choices= [(k,v) for k,v in CONTENT_TYPES.items()], 
+    #     null=True
+    #     )
+
     # content_type = models.ForeignKey(
     #     ContentType, 
     #     blank=True, 

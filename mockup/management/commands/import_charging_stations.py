@@ -6,7 +6,12 @@ from django.core.management import BaseCommand
 from django import db
 from django.contrib.gis.geos import Point, Polygon
 from django.conf import settings
-from mockup.models import Unit, Geometry, ChargingStationContent
+from mockup.models import (
+    Unit,
+    ContentTypes,
+    Geometry,
+    ChargingStationContent
+    )
 from .utils import fetch_json, delete_tables, GEOMETRY_URL
 logger = logging.getLogger("django")
 
@@ -33,10 +38,14 @@ def get_filtered_json(json_data):
         
 @db.transaction.atomic    
 def save_to_database(json_data, srid):
+    content_type = ContentTypes.objects.get_or_create(
+        short_name=ContentTypes.CHARGING_STATION,
+        class_name=ContentTypes.CONTENT_TYPES[ContentTypes.CHARGING_STATION]
+    )[0]
 
     for data in json_data:
         is_active = True
-        content_type = Unit.CHARGING_STATION 
+       
         geometry = data.get("geometry", None)
         attributes = data.get("attributes", None)
         if not attributes or not geometry:
@@ -70,7 +79,7 @@ def save_to_database(json_data, srid):
         # breakpoint()
         # unit1 = Unit.objects.create(content=content)
         #unit2 = Unit.objects.create(geometry=geometry)
-        #unit3, created = Unit.objects.update_or_create(type=0,is_active=True, content_id=content.pk, content_type=ContentType.objects.get_for_model(ChargingStationContent))
+        #unit3, created = Unit.objects.update_or_create(type=0,is_active=True, content_id=content.pk, content_type=ContentTypes.objects.get_for_model(ChargingStationContent))
         # breakpoint()
         # unit = Unit.objects.get(content=content)
         # breakpoint()
@@ -104,5 +113,5 @@ class Command(BaseCommand):
                 .format(CHARGING_STATIONS_URL))
             json_data = fetch_json(CHARGING_STATIONS_URL)
         srid, filtered_json = get_filtered_json(json_data)
-        delete_tables(Unit.CHARGING_STATION)
+        delete_tables(ContentTypes.CHARGING_STATION)
         save_to_database(filtered_json, srid)

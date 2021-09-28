@@ -1,4 +1,4 @@
-from .unit import Unit
+from .unit import Unit, ContentTypes
 from .geometry import Geometry
 
 from .content import (

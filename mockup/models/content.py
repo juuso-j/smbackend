@@ -4,6 +4,7 @@ from django.contrib.contenttypes.fields import GenericRelation
 from . import Unit
 
 
+
 class Station(models.Model):
     name = models.CharField(max_length=100, null=True)
     address = models.CharField(max_length=100, null=True)
@@ -31,6 +32,12 @@ class ChargingStationContent(Station):
 class GasFillingStationContent(Station):
     lng_cng = models.CharField(max_length=10, null=True)
     operator = models.CharField(max_length=30, null=True)
+    # units = GenericRelation(
+    #     Unit,
+    #     content_type_field="content_type",
+    #     object_id_field="content_id",
+    #     related_query_name="contents"
+    #   )
     unit = models.OneToOneField(
         Unit, 
         related_name="gas_filling_station_content",

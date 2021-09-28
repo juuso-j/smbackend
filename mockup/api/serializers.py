@@ -1,36 +1,23 @@
+import json
 from mockup.models.content import GasFillingStationContent
 from django.contrib.gis.geos import geometry
+from django.core import serializers as django_serializers
 from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from ..models import (
     Unit,
+    ContentTypes,
     Geometry,
     ChargingStationContent
 )
 
+class ContentTypesSerializer(serializers.ModelSerializer):
 
-
-class UnitSerializer(serializers.ModelSerializer):
-
-    geometries = serializers.StringRelatedField(many=True)
     class Meta:
-        model = Unit
-        fields = [
-            "created_time",
-            "is_active",
-            "content_type",
-            "geometries",
-        ]
+        model = ContentTypes
+        fields = "__all__"
 
-class GeometrySerializer(GeoFeatureModelSerializer):
-    unit = UnitSerializer()
-    class Meta:
-        model = Geometry
-        geo_field = "geometry"
-        fields = [
-            "geometry",
-            "unit",
-        ]
+
 
 class ChargingStationContentSerializer(serializers.ModelSerializer):
    
@@ -47,6 +34,7 @@ class ChargingStationContentSerializer(serializers.ModelSerializer):
             "charger_type",            
             ]
 
+
 class GasFillingStationContentSerializer(serializers.ModelSerializer):
     
     class Meta:
@@ -58,8 +46,53 @@ class GasFillingStationContentSerializer(serializers.ModelSerializer):
             "lng_cng",            
             ]
 
-class ChargingStationSerializer(GeoFeatureModelSerializer):
+class UnitInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Unit
+        fields = [
+            "created_time",
+            "is_active",
+        ]    
+
+class UnitSerializer(serializers.ModelSerializer):
+
+   
+    geometries = serializers.StringRelatedField(many=True)
+    content_type = ContentTypesSerializer()
+    content = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Unit
+        fields = [
+            "created_time",
+            "is_active",
+            "content_type",
+            "content",
+            "geometries",
+        ]
+    def get_content(self, obj):
+        content = None
+        if obj.content_type.short_name == ContentTypes.GAS_FILLING_STATION:
+            content = obj.gas_filling_station_content           
+        elif obj.content_type.short_name == ContentTypes.CHARGING_STATION:
+            content = obj.charging_station_content 
+
+        ser_data = django_serializers.serialize("json",[content,])
+        return json.loads(ser_data) 
+
+
+class GeometrySerializer(GeoFeatureModelSerializer):
     unit = UnitSerializer()
+    class Meta:
+        model = Geometry
+        geo_field = "geometry"
+        fields = [
+            "geometry",
+            "unit",
+        ]
+
+class ChargingStationSerializer(GeoFeatureModelSerializer):
+    unit = UnitInfoSerializer()
     charging_station_content = ChargingStationContentSerializer(many=False, read_only=True, source="unit.charging_station_content")
     class Meta:
         model = Geometry
@@ -70,8 +103,9 @@ class ChargingStationSerializer(GeoFeatureModelSerializer):
             "charging_station_content",
         ]
 
+
 class GasFillingStationSerializer(GeoFeatureModelSerializer):
-    unit = UnitSerializer()
+    unit = UnitInfoSerializer()
     gas_filling_station_content = GasFillingStationContentSerializer(many=False, read_only=True, source="unit.gas_filling_station_content")
     class Meta:
         model = Geometry

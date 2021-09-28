@@ -5,8 +5,12 @@ from django.contrib.gis.geos import GEOSGeometry, Point, Polygon
 from django.core.management import BaseCommand
 from django import db
 from django.conf import settings
-
-from mockup.models import Unit, Geometry, GasFillingStationContent
+from mockup.models import (
+    Unit, 
+    ContentTypes, 
+    Geometry, 
+    GasFillingStationContent
+)
 from .utils import fetch_json,delete_tables, GEOMETRY_URL
 logger = logging.getLogger("django")
 
@@ -30,10 +34,14 @@ def get_filtered_json(json_data):
 
 @db.transaction.atomic    
 def save_to_database(json_data, srid):
+    content_type = ContentTypes.objects.get_or_create(
+        short_name=ContentTypes.GAS_FILLING_STATION,
+        class_name=ContentTypes.CONTENT_TYPES[ContentTypes.GAS_FILLING_STATION]
+    )[0]
     #print(wkid)
     for data in json_data:
         is_active = True
-        content_type = Unit.GAS_FILLING_STATION 
+        #content_type_name = Unit.GAS_FILLING_STATION 
         attributes = data.get("attributes", None)
         geometry = data.get("geometry", None)
         if not attributes or not geometry:
@@ -51,7 +59,7 @@ def save_to_database(json_data, srid):
         city = attributes.get("CITY", "")
         address += ", " + zip_code + " " + city
         operator = attributes.get("OPERATOR", "")
-        lng_cng = attributes.get("LNG_CNG", "")        
+        lng_cng = attributes.get("LNG_CNG", "")    
         unit = Unit.objects.create(
             is_active=is_active,
             content_type=content_type
@@ -63,6 +71,7 @@ def save_to_database(json_data, srid):
             operator=operator,
             lng_cng=lng_cng
         )
+        
         geometry = Geometry.objects.create(
             unit=unit,
             geometry=point
@@ -92,5 +101,5 @@ class Command(BaseCommand):
                 .format(GAS_FILLING_STATIONS_URL))
             json_data = fetch_json(GAS_FILLING_STATIONS_URL)
         srid, filtered_json = get_filtered_json(json_data)
-        delete_tables(Unit.GAS_FILLING_STATION)
+        delete_tables(ContentTypes.GAS_FILLING_STATION)
         save_to_database(filtered_json, srid)

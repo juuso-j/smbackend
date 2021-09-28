@@ -1,5 +1,5 @@
 import requests
-from mockup.models import Unit
+from mockup.models import ContentTypes
 GEOMETRY_ID = 11 #  11 Varsinaissuomi # 10 Uusim
 GEOMETRY_URL = "https://tie.digitraffic.fi/api/v3/data/traffic-messages/area-geometries?id={id}&lastUpdated=false".format(id=GEOMETRY_ID)
 
@@ -10,5 +10,5 @@ def fetch_json(url):
     return response.json()
 
 
-def delete_tables(contet_type):
-    Unit.objects.filter(content_type=contet_type).delete()
+def delete_tables(short_name):
+    ContentTypes.objects.filter(short_name=short_name).delete()
