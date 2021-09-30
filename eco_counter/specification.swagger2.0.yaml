@@ -1,6 +1,7 @@
 swagger: "2.0"
 info:
-  description: "The Eco-counter API provides hourly, daily, weekly, monthly and yearly traffic data from observation station."
+  description: "The Eco-counter API provides hourly, daily, weekly, monthly
+   and yearly traffic data from observation station."
   version: "1.0.0"
   title: "Turku Eco-Counter"
   termsOfService: ""
@@ -241,7 +242,7 @@ definitions:
 paths:
   /stations/:
     get:
-      summary: "Return a list of stations."
+      summary: "Returns a list of stations."
       responses:
         200:
           description: "List of stations."

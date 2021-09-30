@@ -31,6 +31,7 @@ def import_command(*args, **kwargs):
         )
         return out.getvalue()
 
+@pytest.mark.slow
 @pytest.mark.django_db
 def test_importer():
     """

@@ -28,15 +28,15 @@ from .serializers import (
     YearSerializer
 )
 
-def get_classes(class_name):
-    data_class = getattr(sys.modules[__name__], class_name)
-    serializer_class = getattr(sys.modules[__name__], class_name+"Serializer")
-    return data_class, serializer_class    
+# def get_classes(class_name):
+#     data_class = getattr(sys.modules[__name__], class_name)
+#     serializer_class = getattr(sys.modules[__name__], class_name+"Serializer")
+#     return data_class, serializer_class    
 
 def get_serialized_data_by_date(class_name, query_params):
         data_class = getattr(sys.modules[__name__], class_name)
         serializer_class = getattr(sys.modules[__name__], class_name+"Serializer")
-        data_class, serializer_class = get_classes(class_name)
+        #data_class, serializer_class = get_classes(class_name)
         date = query_params.get("date", None)
         station_id = query_params.get("station_id", None)
         if date is None or station_id is None:
@@ -84,7 +84,6 @@ class DayDataViewSet(viewsets.ReadOnlyModelViewSet):
 
         serializer = DayDataSerializer(queryset, many=True)
         return Response(serializer.data, status=status.HTTP_200_OK)
-
   
 
 class WeekDataViewSet(viewsets.ReadOnlyModelViewSet):
@@ -183,7 +182,6 @@ class WeekViewSet(viewsets.ReadOnlyModelViewSet):
 class MonthViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Month.objects.all()
     serializer_class = MonthSerializer
-
 
 
 class YearViewSet(viewsets.ReadOnlyModelViewSet):
