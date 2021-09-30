@@ -34,9 +34,12 @@ def get_filtered_json(json_data):
 
 @db.transaction.atomic    
 def save_to_database(json_data, srid):
+    description = "Gas filling stations in province of SouthWest Finland."
     content_type = ContentTypes.objects.get_or_create(
         type_name=ContentTypes.GAS_FILLING_STATION,
-        class_name=ContentTypes.CONTENT_TYPES[ContentTypes.GAS_FILLING_STATION]
+        name="Gas Filling Station",
+        class_name=ContentTypes.CONTENT_TYPES[ContentTypes.GAS_FILLING_STATION],
+        description=description
     )[0]
     #print(wkid)
     for data in json_data:
@@ -93,8 +96,7 @@ class Command(BaseCommand):
         logger.info("Importing gas filling stations.")
         if options["test_mode"]:
             logger.info("Running gas filling station_importer in test mode.")
-            # TODO get current working directory
-            f = open(os.getcwd()+"/mockup/tests/"+options["test_mode"], "r")
+            f = open(os.getcwd()+"/"+ContentTypes._meta.app_label+"/tests/"+options["test_mode"], "r")
             json_data = json.load(f)
         else:
             logger.info("Fetcing gas filling stations from: {}"\

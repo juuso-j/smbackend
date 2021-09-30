@@ -1,4 +1,6 @@
+import uuid
 from django.contrib.gis.db import models
+from . import ContentTypes
 # from django.contrib.contenttypes.models import ContentType
 # from django.contrib.contenttypes.fields import GenericForeignKey
 # GEOMETRY_MODELS_LIST = (
@@ -16,26 +18,27 @@ from django.contrib.gis.db import models
 # )
 
 
-class ContentTypes(models.Model):
-    CHARGING_STATION = "CGS"
-    GAS_FILLING_STATION = "GFS"
-    CONTENT_TYPES = {
-        CHARGING_STATION: "ChargingStation",
-        GAS_FILLING_STATION: "GasFillingStation",
-    }
-    type_name = models.CharField(
-        max_length=3, 
-        choices= [(k,v) for k,v in CONTENT_TYPES.items()], 
-        null=True
-        )
-    name = models.CharField(max_length=32, null=True)
-    class_name = models.CharField(max_length=32, null=True)
-    description = models.TextField(null=True)
+# class ContentTypes(models.Model):
+#     CHARGING_STATION = "CGS"
+#     GAS_FILLING_STATION = "GFS"
+#     CONTENT_TYPES = {
+#         CHARGING_STATION: "ChargingStation",
+#         GAS_FILLING_STATION: "GasFillingStation",
+#     }
+#     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
+#     type_name = models.CharField(
+#         max_length=3, 
+#         choices= [(k,v) for k,v in CONTENT_TYPES.items()], 
+#         null=True
+#         )
+#     name = models.CharField(max_length=32, null=True)
+#     class_name = models.CharField(max_length=32, null=True)
+#     description = models.TextField(null=True)
 
 
 
 class Unit(models.Model):
-  
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     is_active = models.BooleanField(default=True)
     created_time = models.DateTimeField(
         auto_now_add=True

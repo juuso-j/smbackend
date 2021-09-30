@@ -15,6 +15,7 @@ class UnitInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Unit
         fields = [
+            "id",
             "created_time",
             "is_active",
         ]    
@@ -28,6 +29,7 @@ class UnitSerializer(GeoFeatureModelSerializer):
         model = Geometry
         geo_field = "geometry"
         fields = [
+            "id",
             "geometry",
             "content_type",
             "unit",

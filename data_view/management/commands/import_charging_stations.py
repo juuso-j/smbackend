@@ -13,11 +13,7 @@ from data_view.models import (
     )
 from .utils import fetch_json, delete_tables, GEOMETRY_URL
 logger = logging.getLogger("django")
-
 CHARGING_STATIONS_URL = "https://services1.arcgis.com/rhs5fjYxdOG1Et61/ArcGIS/rest/services/ChargingStations/FeatureServer/0/query?f=json&where=1%20%3D%201%20OR%201%20%3D%201&returnGeometry=true&spatialRel=esriSpatialRelIntersects&outFields=LOCATION_ID%2CNAME%2CADDRESS%2CURL%2COBJECTID%2CTYPE"
-
-#GEOMETRY_URL = "https://data.foli.fi/geojson/bounds" # contains the boundries for location filtering
-
 
 def get_filtered_json(json_data):
     geometry_data = fetch_json(GEOMETRY_URL) 
@@ -25,9 +21,9 @@ def get_filtered_json(json_data):
     out_data = []
     srid = json_data["spatialReference"]["wkid"]
     for data in json_data["features"]:
-        lon = data["geometry"].get("x",0)
-        lat = data["geometry"].get("y",0)
-        point = Point(lon, lat)
+        x = data["geometry"].get("x",0)
+        y = data["geometry"].get("y",0)
+        point = Point(x, y)
         if polygon.intersects(point):
             out_data.append(data)
     logger.info("Filtered: {} charging stations by location to: {}."\
@@ -37,17 +33,16 @@ def get_filtered_json(json_data):
         
 @db.transaction.atomic    
 def save_to_database(json_data, srid):
-    description = "Gas filling stations in province of SouthWest Finland."
+    description = "Charging stations in province of SouthWest Finland."
     content_type = ContentTypes.objects.get_or_create(
         type_name=ContentTypes.CHARGING_STATION,
-        name="Gas Filling Station",
+        name="Charging Station",
         class_name=ContentTypes.CONTENT_TYPES[ContentTypes.CHARGING_STATION],
         description=description
     )[0]
 
     for data in json_data:
-        is_active = True
-       
+        is_active = True       
         geometry = data.get("geometry", None)
         attributes = data.get("attributes", None)
         if not attributes or not geometry:

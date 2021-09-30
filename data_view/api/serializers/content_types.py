@@ -7,4 +7,8 @@ class ContentTypesSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ContentTypes
-        fields = "__all__"
+        fields = [
+            "id", 
+            "type_name",
+            "description"
+            ]

@@ -1,10 +1,10 @@
+import uuid
 from django.contrib.gis.db import models
 from django.conf import settings
 from . import Unit
 
 
-class Geometry(models.Model):
-    
+class Geometry(models.Model):    
     """
     Portions of the earth’s surface may projected onto a two-dimensional, 
     or Cartesian, plane. Projected coordinate systems are especially convenient
@@ -14,16 +14,18 @@ class Geometry(models.Model):
     systems are defined in Cartesian units (such as meters or feet), easing 
     distance calculations.
     """
-    # More about EPSG:3879 https://epsg.io/3067
-    
+    # More about EPSG:3067 https://epsg.io/3067
+    id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     geometry = models.GeometryField(srid=settings.DEFAULT_SRID, null=True)
-
     unit = models.ForeignKey(
         Unit, 
         related_name="geometries",
         on_delete=models.CASCADE, 
         null=True
-    )   
+    )  
+
+    class Meta:
+        ordering = ["unit__created_time"] 
 
     def __str__(self):
         return str(self.geometry)

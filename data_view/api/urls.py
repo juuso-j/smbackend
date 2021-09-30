@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework import routers
 from . import views
 
-app_name = "mockup"
+app_name = "data_view"
 
 router = routers.DefaultRouter()
 router.register("content_types", views.ContentTypesViewSet, basename="content_types")
