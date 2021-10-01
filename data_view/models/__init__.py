@@ -1,7 +1,9 @@
-from .content_types import ContentTypes
-from .unit import Unit
-from .geometry import Geometry
+from .types import ContentTypes, GroupTypes
+from .unit import Unit, UnitGroup
+#from .geometry import Geometry
 from .content import (
     ChargingStationContent,
-    GasFillingStationContent
+    GasFillingStationContent,
+    WalkingRouteContent,
+    StatueContent,
 )

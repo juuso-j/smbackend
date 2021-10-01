@@ -8,7 +8,6 @@ from django.conf import settings
 from data_view.models import (
     Unit, 
     ContentTypes, 
-    Geometry, 
     GasFillingStationContent
 )
 from .utils import fetch_json,delete_tables, GEOMETRY_URL
@@ -65,6 +64,7 @@ def save_to_database(json_data, srid):
         lng_cng = attributes.get("LNG_CNG", "")    
         unit = Unit.objects.create(
             is_active=is_active,
+            geometry=point,
             content_type=content_type
         )
         content = GasFillingStationContent.objects.create(
@@ -75,10 +75,10 @@ def save_to_database(json_data, srid):
             lng_cng=lng_cng
         )
         
-        geometry = Geometry.objects.create(
-            unit=unit,
-            geometry=point
-        )
+        # geometry = Geometry.objects.create(
+        #     unit=unit,
+        #     geometry=point
+        # )
     logger.info("Saved gas filling stations to database.")
 
     

@@ -17,9 +17,9 @@ class Geometry(models.Model):
     # More about EPSG:3067 https://epsg.io/3067
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     geometry = models.GeometryField(srid=settings.DEFAULT_SRID, null=True)
-    unit = models.ForeignKey(
+    unit = models.OneToOneField(
         Unit, 
-        related_name="geometries",
+        related_name="geometry",
         on_delete=models.CASCADE, 
         null=True
     )  

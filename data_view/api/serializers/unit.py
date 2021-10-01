@@ -5,8 +5,7 @@ from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from .content_types import ContentTypesSerializer
 from ...models import(
     Unit,
-    ContentTypes,
-    Geometry,
+    ContentTypes,   
 )
 
 
@@ -22,26 +21,69 @@ class UnitInfoSerializer(serializers.ModelSerializer):
 
 
 class UnitSerializer(GeoFeatureModelSerializer):
-    unit = UnitInfoSerializer()
-    content_type = ContentTypesSerializer(many=False, read_only=True, source="unit.content_type")
+    content_type = ContentTypesSerializer(
+        many=False, 
+        read_only=True        
+    )
     content = serializers.SerializerMethodField()
-    class Meta: 
-        model = Geometry
+
+    class Meta:
+        model = Unit
         geo_field = "geometry"
-        fields = [
+        fields =  [
             "id",
+            "is_active",
+            "created_time",
             "geometry",
             "content_type",
-            "unit",
             "content"
         ]
-
     def get_content(self, obj):
-        content = None
-        if obj.unit.content_type.type_name == ContentTypes.GAS_FILLING_STATION:
-            content = obj.unit.gas_filling_station_content           
-        elif obj.unit.content_type.type_name == ContentTypes.CHARGING_STATION:
-            content = obj.unit.charging_station_content 
-
+        content = None        
+        if obj.content_type.type_name == ContentTypes.GAS_FILLING_STATION:
+            content = obj.gas_filling_station_content           
+        elif obj.content_type.type_name == ContentTypes.CHARGING_STATION:
+            content = obj.charging_station_content 
+        elif obj.content_type.type_name == ContentTypes.STATUE:
+            content = obj.statue_content
+        elif obj.content_type.type_name == ContentTypes.WALKING_ROUTE:
+            content = obj.walking_route_content      
+        else:
+            return ""
         ser_data = django_serializers.serialize("json",[content,])
         return json.loads(ser_data) 
+
+
+# class UnitSerializer(OLDGeoFeatureModelSerializer):
+#     = UnitInfoSerializer()
+#     content_type = ContentTypesSerializer(
+#         many=False, 
+#         read_only=True, 
+#         source="content_type"
+#     )
+#     content = serializers.SerializerMethodField()
+#     class Meta: 
+#         model = Geometry
+#         geo_field = "geometry"
+#         fields = [
+#             "id",
+#             "geometry",
+#             "content_type",
+#             ",
+#             "content"
+#         ]
+
+#     def get_content(self, obj):
+#         content = None
+#         if obj.content_type.type_name == ContentTypes.GAS_FILLING_STATION:
+#             content = obj.gas_filling_station_content           
+#         elif obj.content_type.type_name == ContentTypes.CHARGING_STATION:
+#             content = obj.charging_station_content 
+#         elif obj.content_type.type_name == ContentTypes.STATUE:
+#             content = obj.statue_content
+#         elif obj.content_type.type_name == ContentTypes.WALKING_ROUTE:
+#             content = obj.walking_route_content      
+#         else:
+#             return ""
+#         ser_data = django_serializers.serialize("json",[content,])
+#         return json.loads(ser_data) 

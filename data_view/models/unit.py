@@ -1,55 +1,53 @@
 import uuid
+from django.conf import settings
 from django.contrib.gis.db import models
-from . import ContentTypes
-# from django.contrib.contenttypes.models import ContentType
-# from django.contrib.contenttypes.fields import GenericForeignKey
-# GEOMETRY_MODELS_LIST = (
-#         models.Q(model="pointgeometry") | 
-#         models.Q(model="multipolygongeometry") |
-#         models.Q(model="polygongeometry") |
-#         models.Q(model="linestringgeometry")        
-#     )
-
-# CONTENT_MODELS_LIST=(
-#     models.Q(model="charginstationcontent") |
-#     models.Q(model="gasstationcontent") | 
-#     models.Q(model="routecontent") |
-#     models.Q(model="parkingareacontent") 
-# )
+from . import ContentTypes, GroupTypes
 
 
-# class ContentTypes(models.Model):
-#     CHARGING_STATION = "CGS"
-#     GAS_FILLING_STATION = "GFS"
-#     CONTENT_TYPES = {
-#         CHARGING_STATION: "ChargingStation",
-#         GAS_FILLING_STATION: "GasFillingStation",
-#     }
-#     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
-#     type_name = models.CharField(
-#         max_length=3, 
-#         choices= [(k,v) for k,v in CONTENT_TYPES.items()], 
-#         null=True
-#         )
-#     name = models.CharField(max_length=32, null=True)
-#     class_name = models.CharField(max_length=32, null=True)
-#     description = models.TextField(null=True)
-
-
-
-class Unit(models.Model):
+class BaseUnit(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
     is_active = models.BooleanField(default=True)
     created_time = models.DateTimeField(
         auto_now_add=True
     )
+    class Meta:
+        abstract = True
+        ordering = ["created_time"]
+
+
+class UnitGroup(BaseUnit): 
+    group_type = models.ForeignKey(
+        GroupTypes,
+        on_delete=models.CASCADE, 
+        null=True, 
+        related_name="unit_groups"
+    )
+
+class Unit(BaseUnit):
+    """
+    Portions of the earth’s surface may projected onto a two-dimensional, 
+    or Cartesian, plane. Projected coordinate systems are especially convenient
+    for region-specific applications, e.g., if you know that your database 
+    will only cover geometries in North Kansas, then you may consider using 
+    rojection system specific to that region. Moreover, projected coordinate 
+    systems are defined in Cartesian units (such as meters or feet), easing 
+    distance calculations.
+    """
+    # More about EPSG:3067 https://epsg.io/3067
+    
+    geometry = models.GeometryField(srid=settings.DEFAULT_SRID, null=True)
     content_type = models.ForeignKey(
         ContentTypes,
         on_delete=models.CASCADE, 
         null=True, 
         related_name="units"
     )
-     
+    unit_group = models.ForeignKey(
+        UnitGroup, 
+        on_delete=models.CASCADE,
+        null=True,
+        related_name="units"
+    ) 
    
     
     # content_type = models.CharField(

@@ -8,7 +8,6 @@ from django.conf import settings
 from data_view.models import (
     Unit,
     ContentTypes,
-    Geometry,
     ChargingStationContent
     )
 from .utils import fetch_json, delete_tables, GEOMETRY_URL
@@ -58,6 +57,7 @@ def save_to_database(json_data, srid):
         charger_type = attributes.get("TYPE", "")        
         unit = Unit.objects.create(
             is_active=is_active,
+            geometry=point,
             content_type=content_type
         )
         content = ChargingStationContent.objects.create(
@@ -67,10 +67,10 @@ def save_to_database(json_data, srid):
             url=url,
             charger_type=charger_type
         )
-        geometry = Geometry.objects.create(
-            unit=unit,
-            geometry=point
-        )
+        # geometry = Geometry.objects.create(
+        #     unit=unit,
+        #     geometry=point
+        # )
     logger.info("Saved charging stations to database.")
             
         # breakpoint()
