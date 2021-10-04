@@ -32,6 +32,14 @@ class UnitSerializer(GeoFeatureModelSerializer):
         geo_field = "geometry"
         fields =  [
             "id",
+            "name",
+            "name_fi",
+            "name_sv",
+            "name_en",  
+            "address",
+            "address_fi",
+            "address_sv",
+            "address_en",
             "is_active",
             "created_time",
             "geometry",

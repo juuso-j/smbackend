@@ -3,8 +3,6 @@ from django.contrib.gis.gdal.error import GDALException
 def transform_queryset(srid, queryset):
     try:
         for elem in queryset:
-
-            print("HERE")
             elem.geometry.transform(srid)
     except GDALException:
         return False, queryset
@@ -13,7 +11,8 @@ def transform_queryset(srid, queryset):
 
 def transform_group_queryset(srid, queryset):
     try: 
-      pass
+        for unit in queryset:
+            unit.geometry.transform(srid)
 
     except GDALException:
         return False, queryset

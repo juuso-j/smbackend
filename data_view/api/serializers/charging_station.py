@@ -12,8 +12,8 @@ class ChargingStationContentSerializer(serializers.ModelSerializer):
     class Meta:
         model = ChargingStationContent
         fields = [
-            "name",
-            "address",
+#            "name",
+            #"address",
             "url",
             "charger_type",            
             ]

@@ -61,16 +61,17 @@ def save_to_database(json_data, srid):
         city = attributes.get("CITY", "")
         address += ", " + zip_code + " " + city
         operator = attributes.get("OPERATOR", "")
-        lng_cng = attributes.get("LNG_CNG", "")    
+        lng_cng = attributes.get("LNG_CNG", "") 
         unit = Unit.objects.create(
             is_active=is_active,
+            name=name,
+            address=address,
             geometry=point,
+
             content_type=content_type
         )
         content = GasFillingStationContent.objects.create(
             unit=unit,
-            name=name,
-            address=address,
             operator=operator,
             lng_cng=lng_cng
         )

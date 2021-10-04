@@ -16,31 +16,45 @@ from data_view.models import (
 )
 @db.transaction.atomic    
 def save_to_database():
-    for i in range(5):
-        group_type = GroupTypes.objects.get_or_create(
-            type_name="FO"+str(i)
-        )[0]
+    GroupTypes.objects.all().delete()
+    for i in range(1,4):
+        group_type, created = GroupTypes.objects.get_or_create(
+            type_name="KKR",
+            name="KulttuuriKävelyReitti"+str(i*1),
+        
+        )
         unit_group = UnitGroup.objects.get_or_create(
-            group_type=group_type
+            group_type=group_type,
+            name="Paavo Nurmi mockup reitti."+str(i),
+            description="Reitti jossa Paavo nurmen patsas tms."        
         )[0]
 
         statue_type = ContentTypes.objects.get_or_create(
-            type_name=ContentTypes.STATUE
+            type_name=ContentTypes.STATUE            
         )[0]
         walking_route_type = ContentTypes.objects.get_or_create(
             type_name=ContentTypes.WALKING_ROUTE
         )[0]
-        point = Point(236562.14196270588, 6704811.571559942, srid=settings.DEFAULT_SRID)
-        linestring = LineString((0, 0), (0, 50), (50, 50), (50, 0), (0, 0), sird=settings.DEFAULT_SRID)
+        point = Point(236562.14196270588+i*100, 6704811.571559942+i*100, srid=settings.DEFAULT_SRID)
+        linestring = LineString(
+            (236562.14196270588+i*100, 6704811.571559942+i*100),
+            (237562.14196270588+i*100, 6714811.571559942+i*100),
+            (237962.14196270588+i*100, 6744811.571559942+i*100),            
+            (234562.14196270588+i*100, 6724811.571559942+i*100),            
+            (238562.14196270588+i*100, 6734811.571559942+i*100),         
+            
+            sird=settings.DEFAULT_SRID)
 
         statue_unit = Unit.objects.create(
             content_type=statue_type,
             geometry=point,
-            unit_group=unit_group
+            unit_group=unit_group,
+            name="Paavo Nurmen Patsas"+str(i*1),
+            address="Itäinen Rantakatu."
         )
+
         content = StatueContent.objects.create(
             unit=statue_unit,
-            name="Paavo nurmi"+str(i)
         )
         # geometry = Geometry.objects.create(
         #     unit=statue_unit,
@@ -49,11 +63,12 @@ def save_to_database():
         walking_route_unit = Unit.objects.create(
             content_type=walking_route_type,
             geometry=linestring,
+            name="Paavo Nurmi Reitin reittidata."+str(i*1),
             unit_group=unit_group
         )
         content = WalkingRouteContent.objects.create(
             unit=walking_route_unit,
-            name="Kulttuuria"+str(i)
+            
         )
     # geometry=Geometry.objects.create(
     #     unit=walking_route_unit,

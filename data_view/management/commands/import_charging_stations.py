@@ -57,13 +57,13 @@ def save_to_database(json_data, srid):
         charger_type = attributes.get("TYPE", "")        
         unit = Unit.objects.create(
             is_active=is_active,
+            name=name,
+            address=address,
             geometry=point,
             content_type=content_type
         )
         content = ChargingStationContent.objects.create(
             unit=unit,
-            name=name,
-            address=address,
             url=url,
             charger_type=charger_type
         )

@@ -6,15 +6,22 @@ from ...models import(
 )
 
 class UnitGroupSerializer(serializers.ModelSerializer):
-    unit = UnitSerializer(
+    units = UnitSerializer(
         many=True,
-        read_only=True,
-        source="units"
+        read_only=True,      
     )
 
     class Meta:
         model = UnitGroup
         fields = [
             "id",
-            "unit"
+            "name",
+            "name_fi",
+            "name_sv",
+            "name_en",            
+            "description",
+            "description_fi",
+            "description_sv",            
+            "description_en",
+            "units"
         ]

@@ -10,10 +10,13 @@ class BaseUnit(models.Model):
     created_time = models.DateTimeField(
         auto_now_add=True
     )
+    name = models.CharField(max_length=64, null=True)
+    description=models.TextField(null=True)
+
     class Meta:
         abstract = True
         ordering = ["created_time"]
-
+ 
 
 class UnitGroup(BaseUnit): 
     group_type = models.ForeignKey(
@@ -22,6 +25,9 @@ class UnitGroup(BaseUnit):
         null=True, 
         related_name="unit_groups"
     )
+    def transform(self):
+        for unit in self.units.all():
+            unit.geometry.transform(4326)
 
 class Unit(BaseUnit):
     """
@@ -36,12 +42,14 @@ class Unit(BaseUnit):
     # More about EPSG:3067 https://epsg.io/3067
     
     geometry = models.GeometryField(srid=settings.DEFAULT_SRID, null=True)
+    address = models.CharField(max_length=100, null=True)
     content_type = models.ForeignKey(
         ContentTypes,
         on_delete=models.CASCADE, 
         null=True, 
         related_name="units"
     )
+    # TODO, NOTE, maybe many-to-many???
     unit_group = models.ForeignKey(
         UnitGroup, 
         on_delete=models.CASCADE,
@@ -49,7 +57,10 @@ class Unit(BaseUnit):
         related_name="units"
     ) 
    
-    
+    def transform(self):
+        self.geometry.transform(4326)
+        print("transform", self.geometry.coords)
+       
     # content_type = models.CharField(
     #     max_length=3, 
     #     choices= [(k,v) for k,v in CONTENT_TYPES.items()], 
