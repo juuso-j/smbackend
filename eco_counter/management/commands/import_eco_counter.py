@@ -190,10 +190,11 @@ class Command(BaseCommand):
             if "JK" and "JP" in current_hour[station]:
                 jk = current_hour[station]["JK"]
                 jp = current_hour[station]["JP"]
-                tot = jk+jp              
+                tot = jk+jp     
                 hour_data.values_jk.append(jk)
                 hour_data.values_jp.append(jp)
                 hour_data.values_jt.append(tot)  
+
             hour_data.save()
 
     def save_stations(self):
@@ -363,8 +364,11 @@ class Command(BaseCommand):
                 station_type = re.findall("[APJ][PK]", column)[0]
                 station_name = column.replace(station_type,"").strip()               
                 value = row[column]
-                if not isinstance(value, int):                
-                    value = 0               
+                if math.isnan(value):
+                    value = int(0)
+                else:
+                    value = int(row[column])
+                    
                 if station_name not in current_hour:
                     current_hour[station_name]={}
                 # if type exist in current_hour, we add the new value to get the hourly sample
