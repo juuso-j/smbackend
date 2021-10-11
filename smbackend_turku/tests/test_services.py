@@ -17,7 +17,7 @@ def test_turku_services_import(get_turku_resource_mock):
     from smbackend_turku.importers.services import ServiceImporter
 
     logger = logging.getLogger(__name__)
-    importer = ServiceImporter(logger=logger)
+    importer = ServiceImporter(logger=logger, test=True)
     keyword_handler = KeywordHandler(logger=importer.logger)
 
     get_turku_resource_mock.return_value = get_test_resource(resource_name="palvelut")

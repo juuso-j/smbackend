@@ -78,7 +78,7 @@ class Command(BaseCommand):
                 continue
             method = getattr(self, "import_%s" % imp)
             if self.verbosity:
-                print("Importing %s..." % imp)
+                print("Importing %s..." % imp)            
             method()
             import_count += 1
 

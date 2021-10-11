@@ -1,7 +1,6 @@
 from collections import defaultdict, OrderedDict
 from datetime import date, datetime
 from functools import lru_cache
-
 import pytz
 from django.conf import settings
 from django.contrib.gis.gdal import GDAL_VERSION
@@ -32,7 +31,7 @@ from smbackend_turku.importers.utils import (
     set_syncher_object_field,
     set_syncher_tku_translated_field,
 )
-
+from .gas_filling_stations import get_gas_filling_station_units
 UTC_TIMEZONE = pytz.timezone("UTC")
 
 ROOT_FIELD_MAPPING = {
@@ -109,18 +108,23 @@ def get_municipality(name):
 class UnitImporter:
     unitsyncher = ModelSyncher(Unit.objects.all(), lambda obj: obj.id)
 
-    def __init__(self, logger=None, importer=None):
+  
+
+    def __init__(self, logger=None, importer=None, test=False):
         self.logger = logger
         self.importer = importer
+        self.test = test
 
     def import_units(self):
-        units = get_turku_resource("palvelupisteet")
+        units = get_turku_resource("palvelupisteet", "palvelupisteet")
+        last_koodi = int(units[-1]["koodi"])+1
+        if not self.test:
+            units += get_gas_filling_station_units(last_koodi)        
 
         for unit in units:
             self._handle_unit(unit)
 
         self.unitsyncher.finish()
-
         update_service_node_counts()
         remove_empty_service_nodes(self.logger)
 
@@ -142,6 +146,7 @@ class UnitImporter:
         self._handle_root_fields(obj, unit_data)
         self._handle_location(obj, unit_data)
         self._handle_extra_info(obj, unit_data)
+        self._handle_extra_data(obj, unit_data)
         self._handle_ptv_id(obj, unit_data)
         self._handle_service_descriptions(obj, unit_data)
         self._save_object(obj)
@@ -239,6 +244,15 @@ class UnitImporter:
                 continue
             self._update_fields(obj, extra_info_data, field_mapping)
 
+    def _handle_extra_data(self, obj, unit_data):
+        extra = unit_data.get("extra", None)
+        if extra:
+            obj.extra = extra
+            #obj.save()
+            #breakpoint()
+
+        
+
     def _handle_ptv_id(self, obj, unit_data):
         ptv_id = unit_data.get("ptv_id")
 
@@ -262,6 +276,7 @@ class UnitImporter:
         obj.service_nodes.clear()
 
         for service_offer in unit_data.get("palvelutarjoukset", []):
+
             for service_data in service_offer.get("palvelut", []):
                 service_id = int(service_data.get("koodi"))
                 try:
@@ -277,10 +292,11 @@ class UnitImporter:
 
                 service_nodes = ServiceNode.objects.filter(related_services=service)
                 obj.service_nodes.add(*service_nodes)
+                # if service_id == 9999:
+                #     breakpoint()
 
         new_service_ids = set(obj.services.values_list("id", flat=True))
         new_service_node_ids = set(obj.service_nodes.values_list("id", flat=True))
-
         if (
             old_service_ids != new_service_ids
             or old_service_node_ids != new_service_node_ids

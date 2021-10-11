@@ -16,5 +16,14 @@ ACCESSIBILITY_SYSTEM_ID=secret
 ```
 ./manage.py geo_import finland --municipalities
 ./manage.py turku_services_import services accessibility units addresses
-./manage.py rebuild_index
+./mana
 ```
+Importing services...
+CALLING URL >>>  https://digiaurajoki.turku.fi:9443/kuntapalvelut/api/v1/palvelut
+CALLING URL >>>  https://digiaurajoki.turku.fi:9443/kuntapalvelut/api/v1/palveluluokat
+Importing accessibility...
+CALLING URL >>>  https://asiointi.hel.fi/kapaesteettomyys/api/v1/accessibility/variables
+CALLING URL >>>  https://asiointi.hel.fi/kapaesteettomyys/api/v1/servicepoints/d26b5f28-41c6-40a3-99f9-a1b762cc8191
+CALLING URL >>>  https://asiointi.hel.fi/kapaesteettomyys/api/v1/accessibility/servicepoints/d26b5f28-41c6-40a3-99f9-a1b762cc8191/properties
+Importing units...
+CALLING URL >>>  https://digiaurajoki.turku.fi:9443/kuntapalvelut/api/v1/palvelupisteet

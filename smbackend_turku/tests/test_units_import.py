@@ -23,7 +23,7 @@ def test_unit_import(resource):
     from smbackend_turku.importers.units import UnitImporter
 
     logger = logging.getLogger(__name__)
-    unit_importer = UnitImporter(logger=logger)
+    unit_importer = UnitImporter(logger=logger, test=True)
 
     # Create Turku municipality
     create_municipality()

@@ -1,6 +1,6 @@
 from django.conf.urls import url
 from django.contrib import admin
-from django.urls import include, re_path
+from django.urls import include, re_path, path
 from django.utils.translation import gettext_lazy as _
 from munigeo.api import all_views as munigeo_views
 from rest_framework import routers
@@ -12,13 +12,19 @@ from services.api import all_views as services_views
 from services.unit_redirect_viewset import UnitRedirectViewSet
 from shortcutter import urls as shortcutter_urls
 from digitraffic.views import DigiTrafficViewSet
-from eco_counter.views import DayViewSet
+#from eco_counter.api.urls import router as eco_counter_router
+#from eco_counter.urls import urlpatterns as eco_counter_urlpatterns
+import eco_counter.api.urls
+import data_view.api.urls
 admin.site.site_header = _("Servicemap administration")
 admin.site.index_title = _("Application management")
 
 router = routers.DefaultRouter()
 router.register(r'digitraffic', DigiTrafficViewSet, basename='digitraffic')
-router.register(r'eco_counter', DayViewSet, basename="eco_counter")
+
+#router.registry.extend(eco_counter_router.registry)
+
+#router.register(r'eco_counter', DayViewSet, basename="eco_counter")
 registered_api_views = set()
 
 for view in services_views + munigeo_views + observations_views:
@@ -38,6 +44,9 @@ urlpatterns = [
     # url(r'^blog/', include('blog.urls')),
     # url(r'^', include(v1_api.urls)),
     # url(r'^admin/', include(admin.site.urls)),
+    re_path(r"^data_view/", include(data_view.api.urls)),
+
+    re_path(r"^eco-counter/", include(eco_counter.api.urls)),
     re_path(r"^admin/", admin.site.urls),
     re_path(r"^open311/", views.post_service_request, name="services"),
     re_path(r"^v2/", include(router.urls)),
@@ -47,4 +56,3 @@ urlpatterns = [
     re_path(r"", include(shortcutter_urls)),
 ]
 
-print(urlpatterns)

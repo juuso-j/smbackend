@@ -1,14 +1,24 @@
 import datetime
 import hashlib
+import json
 import os
 import re
-
+from enum import Enum
 import requests
 from django.conf import settings
 
 # TODO: Change to production endpoint when available
 TURKU_BASE_URL = "https://digiaurajoki.turku.fi:9443/kuntapalvelut/api/v1/"
 ACCESSIBILITY_BASE_URL = "https://asiointi.hel.fi/kapaesteettomyys/api/v1/"
+
+class ServiceCodes():
+    GAS_FILLING_STATION = "9999"
+
+def fetch_json(url):
+    response = requests.get(url)
+    assert response.status_code == 200, "Fetching {} status koodi: {}".\
+            format(url, response.status_code)
+    return response.json()
 
 
 def clean_text(text, default=None):
@@ -26,10 +36,13 @@ def clean_text(text, default=None):
     return text
 
 
-def get_resource(url, headers=None):
+
+def get_resource(url, headers=None, name=""):
     print("CALLING URL >>> ", url)
     resp = requests.get(url, headers=headers)
     assert resp.status_code == 200, "status code {}".format(resp.status_code)
+    with open("out.txt"+name, "w") as outfile:
+        json.dump(resp.json(), outfile)
     return resp.json()
 
 
@@ -81,10 +94,10 @@ def get_ar_servicepoint_accessibility_resource(resource_name=None):
     return get_resource(url)
 
 
-def get_turku_resource(resource_name):
+def get_turku_resource(resource_name, name):
     url = "{}{}".format(TURKU_BASE_URL, resource_name)
     headers = get_turku_api_headers()
-    return get_resource(url, headers)
+    return get_resource(url, headers, name)
 
 
 def set_tku_translated_field(
