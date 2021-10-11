@@ -6,7 +6,7 @@ from . import Unit
 
 class BaseStation(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
-    name = models.CharField(max_length=64, null=True)
+    #name = models.CharField(max_length=64, null=True)
     #address = models.CharField(max_length=128, null=True)
 
     class Meta:
@@ -40,7 +40,7 @@ class GasFillingStationContent(BaseStation):
 
 
 class StatueContent(models.Model):
-    name = models.CharField(max_length=32, null=True)
+    #name = models.CharField(max_length=32, null=True)
     description = models.TextField(null=True)
     unit = models.OneToOneField(
         Unit, 
@@ -49,7 +49,7 @@ class StatueContent(models.Model):
         null=True)
 
 class WalkingRouteContent(models.Model):
-    name = models.CharField(max_length=32, null=True)
+    #name = models.CharField(max_length=32, null=True)
     unit = models.OneToOneField(
         Unit, 
         related_name="walking_route_content",

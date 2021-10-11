@@ -35,7 +35,7 @@ class UnitGroupViewSet(viewsets.ReadOnlyModelViewSet):
 
         srid = request.query_params.get("srid", None)
         serializer = UnitGroupSerializer(unit_group, many=False)
-        
+     
         if srid:
             #serializer_data = serializer.data
             for i, data in enumerate(serializer.data["units"]["features"]):              

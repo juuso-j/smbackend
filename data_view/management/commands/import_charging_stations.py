@@ -67,10 +67,7 @@ def save_to_database(json_data, srid):
             url=url,
             charger_type=charger_type
         )
-        # geometry = Geometry.objects.create(
-        #     unit=unit,
-        #     geometry=point
-        # )
+       
     logger.info("Saved charging stations to database.")
             
         # breakpoint()

@@ -74,12 +74,8 @@ def save_to_database(json_data, srid):
             unit=unit,
             operator=operator,
             lng_cng=lng_cng
-        )
-        
-        # geometry = Geometry.objects.create(
-        #     unit=unit,
-        #     geometry=point
-        # )
+        )        
+    
     logger.info("Saved gas filling stations to database.")
 
     

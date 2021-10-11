@@ -17,16 +17,16 @@ from data_view.models import (
 @db.transaction.atomic    
 def save_to_database():
     GroupTypes.objects.all().delete()
-    for i in range(1,4):
+    for i in range(1,2):
         group_type, created = GroupTypes.objects.get_or_create(
             type_name="KKR",
-            name="KulttuuriKävelyReitti"+str(i*1),
+            name="KulttuuriKävelyReitti",
         
         )
         unit_group = UnitGroup.objects.get_or_create(
             group_type=group_type,
-            name="Paavo Nurmi mockup reitti."+str(i),
-            description="Reitti jossa Paavo nurmen patsas tms."        
+            name="Paavo Nurmi mockup reitti",
+            description="Reitti jossa Paavo Nurmen patsas."        
         )[0]
 
         statue_type = ContentTypes.objects.get_or_create(
@@ -49,7 +49,7 @@ def save_to_database():
             content_type=statue_type,
             geometry=point,
             unit_group=unit_group,
-            name="Paavo Nurmen Patsas"+str(i*1),
+            name="Paavo Nurmen Patsas",
             address="Itäinen Rantakatu."
         )
 
@@ -63,7 +63,7 @@ def save_to_database():
         walking_route_unit = Unit.objects.create(
             content_type=walking_route_type,
             geometry=linestring,
-            name="Paavo Nurmi Reitin reittidata."+str(i*1),
+            name="Reitin reittidataa.",
             unit_group=unit_group
         )
         content = WalkingRouteContent.objects.create(
@@ -76,7 +76,7 @@ def save_to_database():
     # )
 
 
-    breakpoint()
+    #breakpoint()
 
 class Command(BaseCommand):
 
