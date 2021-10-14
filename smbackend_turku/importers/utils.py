@@ -13,6 +13,7 @@ ACCESSIBILITY_BASE_URL = "https://asiointi.hel.fi/kapaesteettomyys/api/v1/"
 
 class ServiceCodes():
     GAS_FILLING_STATION = "9999"
+    CHARGING_STATION = "9998"
 
 def fetch_json(url):
     response = requests.get(url)

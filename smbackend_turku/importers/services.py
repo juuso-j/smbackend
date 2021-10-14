@@ -18,7 +18,10 @@ from .gas_filling_stations import (
     get_gas_filling_station_service,
     get_gas_filling_station_service_node,
 )
-
+from .charging_stations import (
+    get_charging_station_service,
+    get_charging_station_service_node,
+)
 UTC_TIMEZONE = pytz.timezone("UTC")
 
 SERVICE_AS_SERVICE_NODE_PREFIX = "service_"
@@ -49,8 +52,13 @@ class ServiceImporter:
     def _import_service_nodes(self, keyword_handler):
         service_classes = get_turku_resource("palveluluokat", "palvelukuokat")
         if not self.test:
+            service_classes += get_charging_station_service_node(ylatason_koodi="1_35", koodi="2_98")
             service_classes += get_gas_filling_station_service_node(ylatason_koodi="1_35", koodi="1_99")
+        koodit = [service["koodi"] for service in service_classes]
+        print(koodit)
         tree = self._build_servicetree(service_classes)
+        # for service in service_classes:
+        #     breakpoint()
         for parent_node in tree:
             if parent_node["koodi"] in BLACKLISTED_SERVICE_NODES:
                 continue
@@ -61,6 +69,7 @@ class ServiceImporter:
         services = get_turku_resource("palvelut", "palvelut")
         if not self.test:
             services += get_gas_filling_station_service()
+            services += get_charging_station_service()
         for service in services:
             self._handle_service(service, keyword_handler)
         self.servicesyncher.finish()
@@ -119,6 +128,8 @@ class ServiceImporter:
         if not node["koodi"].startswith(SERVICE_AS_SERVICE_NODE_PREFIX):
             self._handle_related_services(obj, node)
         else:
+            # this code is never run
+            
             set_syncher_object_field(
                 obj, "service_reference", convert_code_to_int(node["koodi"])
             )
