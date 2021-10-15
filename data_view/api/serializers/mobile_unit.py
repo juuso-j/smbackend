@@ -4,7 +4,7 @@ from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from .content_types import ContentTypesSerializer
 from ...models import(
-    Unit,
+    MobileUnit,
     ContentTypes,   
 )
 
@@ -12,7 +12,7 @@ from ...models import(
 class UnitInfoSerializer(serializers.ModelSerializer):
   
     class Meta:
-        model = Unit
+        model = MobileUnit
         fields = [
             "id",
             "created_time",
@@ -20,7 +20,7 @@ class UnitInfoSerializer(serializers.ModelSerializer):
         ]    
 
 
-class UnitSerializer(GeoFeatureModelSerializer):
+class MobileUnitSerializer(GeoFeatureModelSerializer):
     content_type = ContentTypesSerializer(
         many=False, 
         read_only=True        
@@ -28,7 +28,7 @@ class UnitSerializer(GeoFeatureModelSerializer):
     content = serializers.SerializerMethodField()
 
     class Meta:
-        model = Unit
+        model = MobileUnit
         geo_field = "geometry"
         fields =  [
             "id",

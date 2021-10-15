@@ -3,7 +3,7 @@ from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from . import UnitInfoSerializer
 from ...models import(
     GasFillingStationContent,
-    Unit
+    MobileUnit
 )
 
 class GasFillingStationContentSerializer(serializers.ModelSerializer):
@@ -28,7 +28,7 @@ class GasFillingStationContentSerializer(serializers.ModelSerializer):
 class GasFillingStationSerializer(GeoFeatureModelSerializer):
     gas_filling_station_content = GasFillingStationContentSerializer(many=False, read_only=True)
     class Meta:
-        model = Unit
+        model = MobileUnit
         geo_field = "geometry"
         fields = [
             "geometry",

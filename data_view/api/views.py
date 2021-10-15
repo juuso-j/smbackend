@@ -5,8 +5,8 @@ from rest_framework import status, viewsets
 from rest_framework.response import Response
 from .utils import transform_queryset, transform_group_queryset
 from ..models import (
-    UnitGroup,
-    Unit,
+    MobileUnitGroup,
+    MobileUnit,
     ContentTypes,
     GroupTypes,
     GasFillingStationContent,
@@ -14,8 +14,8 @@ from ..models import (
     #Geometry,
 )
 from .serializers import(   
-    UnitGroupSerializer, 
-    UnitSerializer,
+    MobileUnitGroupSerializer, 
+    MobileUnitSerializer,
     #GeometrySerializer,
     GroupTypesSerializer,
     ContentTypesSerializer,
@@ -26,51 +26,30 @@ from .serializers import(
 )
 #from data_view.api import serializers
 
-class UnitGroupViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = UnitGroup.objects.all()
-    serializer_class = UnitGroupSerializer
+class MobileUnitGroupViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = MobileUnitGroup.objects.all()
+    serializer_class = MobileUnitGroupSerializer
 
     def retrieve(self, request, pk=None):
-        unit_group = UnitGroup.objects.get(pk=pk)
-
+        pass
         srid = request.query_params.get("srid", None)
-        serializer = UnitGroupSerializer(unit_group, many=False)
-     
-        if srid:
-            #serializer_data = serializer.data
-            for i, data in enumerate(serializer.data["units"]["features"]):              
-                geom = data["geometry"] 
-                GeomClass = getattr(sys.modules["django.contrib.gis.geos"], geom["type"])
-                geom_obj = GeomClass()
-                geom_obj = GeomClass(geom["coordinates"], srid=settings.DEFAULT_SRID)
-                geom_obj.transform(srid)                    
-                geom["coordinates"] = geom_obj.coords
-                serializer.data["units"]["features"][i]["geometry"] = geom
-        # if srid:
-        #     print("SRID")
-        #     try:
-                
-        #         success, qs = transform_queryset(srid,unit_group.units.all())
-        #         unit_group.units.set(qs)  
-        #     except GDALException:
-        #         return Response("Invalid SRID.", status=status.HTTP_400_BAD_REQUEST)
-        return Response(serializer.data, status=status.HTTP_200_OK)
+
 
     def list(self, request):
         type_name = request.query_params.get("type_name", None)        
         srid = request.query_params.get("srid", None)
         queryset = None
         if not type_name:
-            queryset = UnitGroup.objects.all()
+            queryset = MobileUnitGroup.objects.all()
         else:
             if not GroupTypes.objects.filter(type_name=type_name).exists():
                 return Response("type_name does not exist.", status=status.HTTP_400_BAD_REQUEST)
 
-            queryset = UnitGroup.objects.filter(group_type__type_name=type_name)
+            queryset = MobileUnitGroup.objects.filter(group_type__type_name=type_name)
      
         # if srid: 
         #     #success, queryset = transform_group_queryset(srid, queryset)
-        #     trans_qs = UnitGroup.objects.none()
+        #     trans_qs = MobileUnitGroup.objects.none()
         #     ids = []
             # for i,elem in enumerate(queryset):
             #     # qs returns OK tranformed coords
@@ -86,44 +65,41 @@ class UnitGroupViewSet(viewsets.ReadOnlyModelViewSet):
             #         unit.transform()
             # # if not success:
             #     return Response("Invalid SRID.", status=status.HTTP_400_BAD_REQUEST)
-        # if srid:
-        #     for i, unit_group in enumerate(queryset):
-        #         success, qs = transform_group_queryset(srid, unit_group)
-
+    
         page = self.paginate_queryset(queryset)
-        serializer = UnitGroupSerializer(queryset, many=True)
-      
+        serializer = MobileUnitGroupSerializer(queryset, many=True)
         if srid:
-            #serializer_data = serializer.data
-            for i, data in enumerate(serializer.data):
-                for j, elem in enumerate(data["unit"]["features"]):
-                    geom = elem["geometry"] 
-                    GeomClass = getattr(sys.modules["django.contrib.gis.geos"], geom["type"])
-                    geom_obj = GeomClass()
-                    geom_obj = GeomClass(geom["coordinates"], srid=settings.DEFAULT_SRID)
-                    geom_obj.transform(srid)                    
-                    geom["coordinates"] = geom_obj.coords
-                    serializer.data[i]["unit"]["features"][j]["geometry"] = geom
-                #breakpoint()
+            for i, elem in enumerate(serializer.data):
+                geom = elem["unit"]["features"][0]["geometry"]
+                GeomClass = getattr(sys.modules["django.contrib.gis.geos"], geom["type"])
+                geom_obj = GeomClass()
+                geom_obj = GeomClass(geom["coordinates"], srid=settings.DEFAULT_SRID)
+                geom_obj.transform(srid)
+                geom["coordinates"] = geom_obj.coords
+                serializer.data[i]["unit"]["features"][0] = geom
+         
+     
         response = self.get_paginated_response(serializer.data)           
         return Response(response.data, status=status.HTTP_200_OK)
-   
+     
+
+
     
 
-class UnitViewSet(viewsets.ReadOnlyModelViewSet):
+class MobileUnitViewSet(viewsets.ReadOnlyModelViewSet):
     
-    queryset = Unit.objects.all()
-    serializer_class = UnitSerializer     
+    queryset = MobileUnit.objects.all()
+    serializer_class = MobileUnitSerializer     
         
     def retrieve(self, request, pk=None):
-        unit = Unit.objects.get(pk=pk)
+        unit = MobileUnit.objects.get(pk=pk)
         srid = request.query_params.get("srid", None)
         if srid:
             try:
                 unit.geometry.transform(srid)
             except GDALException:
                 return Response("Invalid SRID.", status=status.HTTP_400_BAD_REQUEST)
-        serializer = UnitSerializer(unit, many=False)
+        serializer = MobileUnitSerializer(unit, many=False)
         return Response(serializer.data, status=status.HTTP_200_OK)
     
     def list(self, request):
@@ -132,19 +108,19 @@ class UnitViewSet(viewsets.ReadOnlyModelViewSet):
         queryset = None
         serializer = None 
         if not type_name:
-            queryset = Unit.objects.all()
+            queryset = MobileUnit.objects.all()
             if srid:
                 success, queryset = transform_queryset(srid, queryset)
                 if not success:
                     return Response("Invalid SRID.", status=status.HTTP_400_BAD_REQUEST)
 
             page = self.paginate_queryset(queryset)
-            serializer = UnitSerializer(queryset, many=True)
+            serializer = MobileUnitSerializer(queryset, many=True)
         else:
             if not ContentTypes.objects.filter(type_name=type_name).exists():
                 return Response("type_name does not exist.", status=status.HTTP_400_BAD_REQUEST)
 
-            queryset = Unit.objects.filter(content_type__type_name=type_name)
+            queryset = MobileUnit.objects.filter(content_type__type_name=type_name)
             if srid:
                 success, queryset = transform_queryset(srid, queryset)
                 if not success:
@@ -167,7 +143,7 @@ class GroupTypesViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = GroupTypes.objects.all()
     serializer_class = GroupTypesSerializer
    
-        #wueryset = UnitGroup.objects.filter
+        #wueryset = MobileUnitGroup.objects.filter
 
 class ContentTypesViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ContentTypes.objects.all()

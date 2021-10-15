@@ -1,5 +1,5 @@
-from .unit import UnitInfoSerializer, UnitSerializer
-from .unit_group import UnitGroupSerializer
+from .mobile_unit import UnitInfoSerializer, MobileUnitSerializer
+from .mobile_unit_group import MobileUnitGroupSerializer
 from .group_types import GroupTypesSerializer
 from .content_types import ContentTypesSerializer
 #from .geometry import GeometrySerializer

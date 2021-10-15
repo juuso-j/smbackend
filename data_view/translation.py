@@ -2,17 +2,17 @@ from modeltranslation.translator import TranslationOptions, translator
 
 
 from data_view.models import (
-    UnitGroup,
-    Unit,
+    MobileUnitGroup,
+    MobileUnit,
 )
 
 
-class UnitGroupTranslationOptions(TranslationOptions):
+class MobileUnitGroupTranslationOptions(TranslationOptions):
     fields = ("name", "description")
 
-translator.register(UnitGroup, UnitGroupTranslationOptions)
+translator.register(MobileUnitGroup, MobileUnitGroupTranslationOptions)
 
 
-class UnitTranslationOptions(TranslationOptions):
+class MobileUnitTranslationOptions(TranslationOptions):
     fields = ("name","address")
-translator.register(Unit, UnitTranslationOptions)
+translator.register(MobileUnit, MobileUnitTranslationOptions)

@@ -1,18 +1,18 @@
-from data_view.api.serializers.unit import UnitSerializer
+from data_view.api.serializers.mobile_unit import MobileUnitSerializer
 from rest_framework import serializers
-from . import UnitSerializer
+from . import MobileUnitSerializer
 from ...models import(
-    UnitGroup
+    MobileUnitGroup
 )
 
-class UnitGroupSerializer(serializers.ModelSerializer):
-    units = UnitSerializer(
+class MobileUnitGroupSerializer(serializers.ModelSerializer):
+    units = MobileUnitSerializer(
         many=True,
         read_only=True,      
     )
 
     class Meta:
-        model = UnitGroup
+        model = MobileUnitGroup
         fields = [
             "id",
             "name",

@@ -1,7 +1,7 @@
 import uuid
 from django.contrib.gis.db import models
 from django.contrib.contenttypes.fields import GenericRelation
-from . import Unit
+from . import MobileUnit
 
 
 class BaseStation(models.Model):
@@ -17,7 +17,7 @@ class ChargingStationContent(BaseStation):
     url = models.URLField(null=True)
     charger_type = models.CharField(max_length=32, null=True)
     unit = models.OneToOneField(
-        Unit, 
+        MobileUnit, 
         related_name="charging_station_content",
         on_delete=models.CASCADE, 
         null=True)
@@ -27,13 +27,13 @@ class GasFillingStationContent(BaseStation):
     lng_cng = models.CharField(max_length=8, null=True)
     operator = models.CharField(max_length=32, null=True)
     # units = GenericRelation(
-    #     Unit,
+    #     MobileUnit,
     #     content_type_field="content_type",
     #     object_id_field="content_id",
     #     related_query_name="contents"
     #   )
     unit = models.OneToOneField(
-        Unit, 
+        MobileUnit, 
         related_name="gas_filling_station_content",
         on_delete=models.CASCADE, 
         null=True)
@@ -43,7 +43,7 @@ class StatueContent(models.Model):
     #name = models.CharField(max_length=32, null=True)
     description = models.TextField(null=True)
     unit = models.OneToOneField(
-        Unit, 
+        MobileUnit, 
         related_name="statue_content",
         on_delete=models.CASCADE, 
         null=True)
@@ -51,7 +51,7 @@ class StatueContent(models.Model):
 class WalkingRouteContent(models.Model):
     #name = models.CharField(max_length=32, null=True)
     unit = models.OneToOneField(
-        Unit, 
+        MobileUnit, 
         related_name="walking_route_content",
         on_delete=models.CASCADE, 
         null=True)

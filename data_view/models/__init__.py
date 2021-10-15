@@ -1,5 +1,5 @@
 from .types import ContentTypes, GroupTypes
-from .unit import Unit, UnitGroup
+from .mobile_unit import MobileUnit, MobileUnitGroup
 #from .geometry import Geometry
 from .content import (
     ChargingStationContent,

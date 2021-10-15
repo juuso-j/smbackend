@@ -8,8 +8,8 @@ router = routers.DefaultRouter()
 router.register("group_types", views.GroupTypesViewSet, basename="group_types")
 router.register("content_types", views.ContentTypesViewSet, basename="content_types")
 
-router.register("units", views.UnitViewSet, basename="units")
-router.register("unit_groups", views.UnitGroupViewSet, basename="unit_groups")
+router.register("mobile_units", views.MobileUnitViewSet, basename="mobile_units")
+router.register("mobile_unit_groups", views.MobileUnitGroupViewSet, basename="mobile_unit_groups")
 
 #router.register("geometries", views.GeometryViewSet, basename="geometries")
 router.register("charging_stations", views.ChargingStationContentViewSet, basename="charging_stations")

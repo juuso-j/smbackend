@@ -18,7 +18,7 @@ class BaseUnit(models.Model):
         ordering = ["created_time"]
  
 
-class UnitGroup(BaseUnit): 
+class MobileUnitGroup(BaseUnit): 
     group_type = models.ForeignKey(
         GroupTypes,
         on_delete=models.CASCADE, 
@@ -29,7 +29,7 @@ class UnitGroup(BaseUnit):
         for unit in self.units.all():
             unit.geometry.transform(4326)
 
-class Unit(BaseUnit):
+class MobileUnit(BaseUnit):
     """
     Portions of the earth’s surface may projected onto a two-dimensional, 
     or Cartesian, plane. Projected coordinate systems are especially convenient
@@ -49,9 +49,10 @@ class Unit(BaseUnit):
         null=True, 
         related_name="units"
     )
+    unit_id = models.IntegerField(null=True)
     # TODO, NOTE, maybe many-to-many???
     unit_group = models.ForeignKey(
-        UnitGroup, 
+        MobileUnitGroup, 
         on_delete=models.CASCADE,
         null=True,
         related_name="units"

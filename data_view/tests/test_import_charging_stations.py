@@ -7,7 +7,7 @@ from data_view.models import (
     Unit,
     ContentTypes,
     ChargingStationContent,
-    Geometry
+#    Geometry
 )
 
 def import_command(*args, **kwargs):

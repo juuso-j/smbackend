@@ -2,7 +2,7 @@ from rest_framework import serializers
 from rest_framework_gis.serializers import GeoFeatureModelSerializer
 from . import UnitInfoSerializer
 from ...models import(
-    Unit,
+    MobileUnit,
     ChargingStationContent,
 )
 
@@ -23,7 +23,7 @@ class ChargingStationSerializer(GeoFeatureModelSerializer):
     charging_station_content = ChargingStationContentSerializer(many=False, read_only=True)
     
     class Meta:
-        model = Unit
+        model = MobileUnit
         geo_field = "geometry"
         fields = [
             "geometry",
