@@ -1,91 +1,98 @@
 import logging
-from django.contrib.gis.geos import Point, Polygon
+
+from django.conf import settings
+#from django.contrib.gis.geos import Point, Polygon
+#from django import db
+
 from .utils import fetch_json, ServiceCodes
+#from data_view.importers.utils import fetch_json
+from data_view.importers.gas_filling_station import (
+    get_json_filtered_by_location,
+    save_to_database,
+    GAS_FILLING_STATIONS_URL,
+)
 logger = logging.getLogger("django")
 
 
-GEOMETRY_ID = 11 #  11 Varsinaissuomi # 10 Uusim
-GAS_FILLING_STATIONS_URL = "https://services1.arcgis.com/rhs5fjYxdOG1Et61/ArcGIS/rest/services/GasFillingStations/FeatureServer/0/query?f=json&where=1%3D1&outFields=OPERATOR%2CLAT%2CLON%2CSTATION_NAME%2CADDRESS%2CCITY%2CZIP_CODE%2CLNG_CNG%2CObjectId"
+# GEOMETRY_ID = 11 #  11 Varsinaissuomi # 10 Uusim
+# GAS_FILLING_STATIONS_URL = "https://services1.arcgis.com/rhs5fjYxdOG1Et61/ArcGIS/rest/services/GasFillingStations/FeatureServer/0/query?f=json&where=1%3D1&outFields=OPERATOR%2CLAT%2CLON%2CSTATION_NAME%2CADDRESS%2CCITY%2CZIP_CODE%2CLNG_CNG%2CObjectId"
 
-GEOMETRY_URL = "https://tie.digitraffic.fi/api/v3/data/traffic-messages/area-geometries?id={id}&lastUpdated=false".format(id=GEOMETRY_ID)
+# GEOMETRY_URL = "https://tie.digitraffic.fi/api/v3/data/traffic-messages/area-geometries?id={id}&lastUpdated=false".format(id=GEOMETRY_ID)
+#CONTENT_TYPE = "GasFillingStation"
 
-def get_json_filtered_by_location():
+
+# @db.transaction.atomic    
+# def to_database(json_data):
+
+#     # copy code...
+#     # SOLVE, howto get the unit_id = KOODI
+#     # only the code.
+#     pass
+# class GasFillingStationImporter:
+
+#     def __init__(self, logger=None, importer=None, test=False):
+#         self.logger = logger
+#         self.importer = importer
+#         self.test = test
+
+
+def get_gas_filling_station_units(koodi, to_database=False):
     json_data = fetch_json(GAS_FILLING_STATIONS_URL)
-    geometry_data = fetch_json(GEOMETRY_URL) 
-    polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])
-    filtered_data = []
-    #srid = json_data["spatialReference"]["wkid"]
-    for data in json_data["features"]:
-        lon = data["attributes"].get("LON",0)
-        lat = data["attributes"].get("LAT",0)
-        point = Point(lon, lat)
-        if polygon.intersects(point):
-            filtered_data.append(data)
-    logger.info("Filtered: {} gas filling stations by location to: {}."\
-        .format(len(json_data["features"]), len(filtered_data)))
-    return filtered_data
+    filtered_data = get_json_filtered_by_location(json_data)
+    if to_database:
+        save_to_database(filtered_data)
 
-
-def get_gas_filling_station_units(koodi):
-
-    filtered_data = get_json_filtered_by_location()
     out_data = []
-    for i, elem in enumerate(filtered_data):
-        unit = {}
-        attributes = elem.get("attributes")
-        x = attributes.get("LON",0)
-        y = attributes.get("LAT",0)               
-        name = attributes.get("STATION_NAME", "")
-        address = attributes.get("ADDRESS", "")
-        zip_code = attributes.get("ZIP_CODE", "")
-        city = attributes.get("CITY", "")
-        address += ", " + zip_code + " " + city
-        operator = attributes.get("OPERATOR", "")
-        lng_cng = attributes.get("LNG_CNG", "") 
+    for i, obj in enumerate(filtered_data):
+        unit = {}     
+        address = obj.address + ", " + obj.zip_code + " " + obj.city        
         unit["koodi"] = str(koodi+i)
         unit["nimi_kieliversiot"] = {}        
-        unit["nimi_kieliversiot"]["fi"] = name
+        unit["nimi_kieliversiot"]["fi"] = obj.name
         unit["fyysinenPaikka"] = {}
-        unit["fyysinenPaikka"]["leveysaste"] = y; 
-        unit["fyysinenPaikka"]["pituusaste"] = x; 
+        unit["fyysinenPaikka"]["leveysaste"] = obj.y; 
+        unit["fyysinenPaikka"]["pituusaste"] = obj.x; 
         unit["fyysinenPaikka"]["koordinaattiAsettuKasin"] = "True"
         unit["fyysinenPaikka"]["osoitteet"] = []
         osoite = {}
         osoite["katuosoite_fi"] = address
         osoite["katuosoite_sv"] = address
         osoite["katuosoite_en"] = address
-        osoite["postinumero"] = zip_code
-        osoite["postitoimipaikka_fi"] = city
-        osoite["postitoimipaikka_sv"] = city
-        osoite["postitoimipaikka_en"] = city
+        osoite["postinumero"] = obj.zip_code
+        osoite["postitoimipaikka_fi"] = obj.city
+        osoite["postitoimipaikka_sv"] = obj.city
+        osoite["postitoimipaikka_en"] = obj.city
         unit["fyysinenPaikka"]["osoitteet"].append(osoite)
         unit["tila"] = {}
-        unit["tila"]["koodi"] = "1"
+        unit["tila"]["koodi"] = "1" # must be 1, to be visible.
         unit["tila"]["nimi"] = "Aktiivinen, julkaistu"
         unit["kuvaus_kieliversiot"] = {}
-        unit["kuvaus_kieliversiot"]["fi"] = operator + " " + lng_cng         
-        unit["palvelutarjoukset"] = []
-        extra = {}
-        extra["operator"] = operator
-        extra["lng_cng"] = lng_cng
+        unit["kuvaus_kieliversiot"]["fi"] = obj.operator + " " + obj.lng_cng         
+        unit["kuvaus_kieliversiot"]["sv"] = obj.operator + " " + obj.lng_cng         
+        unit["kuvaus_kieliversiot"]["en"] = obj.operator + " " + obj.lng_cng         
+
+        
+        extra = {}       
+        extra["operator"] = obj.operator
+        extra["lng_cng"] = obj.lng_cng
         unit["extra"] = extra
+        # Palvelut
+        unit["palvelutarjoukset"] = []
         palvelut = {}
         palvelut["palvelut"] = []
         palvelu = {}
-        palvelu["koodi"] = "9999"
+        palvelu["koodi"] = ServiceCodes.GAS_FILLING_STATION
         palvelut["palvelut"].append(palvelu)
         unit["palvelutarjoukset"].append(palvelut)
         out_data.append(unit)
-
     return out_data
 
 
-def get_gas_filling_station_service_node(
+def get_gas_filling_station_service_node(        
     ylatason_koodi="1_35", # Vapaa aika
     koodi="1_99", # WHAT?    
     services=[]
-    ):
-    
+    ):    
     service_node = {}
     service_node["ylatason_koodi"] = ylatason_koodi
     service_node["koodi"] = koodi
@@ -103,7 +110,7 @@ def get_gas_filling_station_service_node(
     service_node["palvelut"].append(palvelu)
     return [service_node]
 
-def get_gas_filling_station_service():
+def get_gas_filling_station_service(self):
     service = {}
     service["koodi"] = ServiceCodes.GAS_FILLING_STATION
     service["tila"] = {}
@@ -113,6 +120,66 @@ def get_gas_filling_station_service():
     service["nimi_kieliversiot"]["fi"] = "Kaasuntankkausema"
     return [service]
 
+
+# def import_gas_filling_stations(**kwargs):
+#     print(kwargs)
+#     importer = GasFillingStationImporter(**kwargs)
+#     return importer.get_gas_filling_station_units()
    
 
+from munigeo.importer.sync import ModelSyncher
+from services.models import (
+    Service,
+    ServiceNode,
+    Unit,
+    UnitAccessibilityShortcomings,
+    UnitConnection,
+    UnitIdentifier,
+    UnitServiceDetails,
+)
 
+ROOT_FIELD_MAPPING = {
+    "nimi_kieliversiot": "name",
+    "kuvaus_kieliversiot": "description",
+    "sahkoposti": "email",
+}
+from smbackend_turku.importers.utils import (
+    get_localized_value,
+    get_turku_resource,
+    get_weekday_str,
+    set_syncher_object_field,
+    set_syncher_tku_translated_field,
+)
+from django.contrib.gis.geos import Point, Polygon
+from django.conf import settings
+from datetime import date, datetime
+import pytz
+
+UTC_TIMEZONE = pytz.timezone("UTC")
+
+def import_gas():
+    unitsyncher = ModelSyncher(Unit.objects.all(), lambda obj: obj.id)
+
+    json_data = fetch_json(GAS_FILLING_STATIONS_URL)
+    filtered_data = get_json_filtered_by_location(json_data)
+    id_off =  Unit.objects.all().order_by("-id")[0].id+1
+    for i, data_obj in enumerate(filtered_data):
+        unit_id = i + id_off
+        obj = unitsyncher.get(unit_id)
+        if not obj:
+            obj = Unit(id=unit_id)
+            obj._changed = True
+        point = Point(data_obj.x, data_obj.y, srid=settings.DEFAULT_SRID)
+        set_syncher_object_field(obj, "location", point)
+
+        if obj._changed:
+            obj.last_modified_time = datetime.now(UTC_TIMEZONE)
+            obj.save()
+    
+        unitsyncher.mark(obj)
+
+    breakpoint()
+
+if __name__ == "__main__":
+
+    import_gas()

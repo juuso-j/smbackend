@@ -12,7 +12,6 @@ from smbackend_turku.importers.addresses import import_addresses
 from smbackend_turku.importers.services import import_services
 from smbackend_turku.importers.units import import_units
 
-
 class Command(BaseCommand):
     help = "Import services from City of Turku APIs"
     importer_types = ["services", "accessibility", "units", "addresses"]

@@ -1,8 +1,12 @@
 import logging
-
-from django.contrib.gis.geos import Point, Polygon
-
 from .utils import fetch_json, ServiceCodes
+from data_view.importers.charging_stations import(
+    get_json_filtered_by_location,
+    save_to_database,
+    CHARGING_STATIONS_URL
+
+)
+
 logger = logging.getLogger("django")
 
 CHARGING_STATIONS_URL = "https://services1.arcgis.com/rhs5fjYxdOG1Et61/ArcGIS/rest/services/ChargingStations/FeatureServer/0/query?f=json&where=1%20%3D%201%20OR%201%20%3D%201&returnGeometry=true&spatialRel=esriSpatialRelIntersects&outFields=LOCATION_ID%2CNAME%2CADDRESS%2CURL%2COBJECTID%2CTYPE"
@@ -10,44 +14,42 @@ GEOMETRY_ID = 11 #  11 Varsinaissuomi # 10 Uusim
 
 GEOMETRY_URL = "https://tie.digitraffic.fi/api/v3/data/traffic-messages/area-geometries?id={id}&lastUpdated=false".format(id=GEOMETRY_ID)
 
-def get_json_filtered_by_location():
-    json_data = fetch_json(CHARGING_STATIONS_URL)
-    geometry_data = fetch_json(GEOMETRY_URL) 
-    polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])
-    filtered_data = []
+# def get_json_filtered_by_location():
+#     json_data = fetch_json(CHARGING_STATIONS_URL)
+#     geometry_data = fetch_json(GEOMETRY_URL) 
+#     polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])
+#     filtered_data = []
     
-    for data in json_data["features"]:
-        x = data["geometry"].get("x",0)
-        y = data["geometry"].get("y",0)
-        point = Point(x, y)
-        if polygon.intersects(point):
-            filtered_data.append(data)
-    logger.info("Filtered: {} charging stations by location to: {}."\
-        .format(len(json_data["features"]), len(filtered_data)))
+#     for data in json_data["features"]:
+#         x = data["geometry"].get("x",0)
+#         y = data["geometry"].get("y",0)
+#         point = Point(x, y)
+#         if polygon.intersects(point):
+#             filtered_data.append(data)
+#     logger.info("Filtered: {} charging stations by location to: {}."\
+#         .format(len(json_data["features"]), len(filtered_data)))
         
-    return filtered_data
+#     return filtered_data
 
-def get_charging_station_units(koodi):
-    filtered_data = get_json_filtered_by_location()
+def get_charging_station_units(koodi, to_database=False):
+    json_data = fetch_json(CHARGING_STATIONS_URL)
+    filtered_data = get_json_filtered_by_location(json_data)
+    if to_database:
+        save_to_database(filtered_data)
+
     out_data = []
-    for i, elem in enumerate(filtered_data):
-        unit = {}
-        attributes = elem.get("attributes")
-        geometry = elem.get("geometry")
-        x = geometry.get("x",0)
-        y = geometry.get("y",0)               
-        name = attributes.get("NAME", "")
-        type = attributes.get("TYPE", "")
-        full_address = attributes.get("ADDRESS", "").split(",")
+    for i, obj in enumerate(filtered_data):
+        unit = {}      
+        full_address = obj.address.split(",")
         address = full_address[0]
         zip_code = full_address[1].split(" ")[1]
         city = full_address[1].split(" ")[2]
         unit["koodi"] = str(koodi+i)
         unit["nimi_kieliversiot"] = {}        
-        unit["nimi_kieliversiot"]["fi"] = name
+        unit["nimi_kieliversiot"]["fi"] = obj.name
         unit["fyysinenPaikka"] = {}
-        unit["fyysinenPaikka"]["leveysaste"] = y; 
-        unit["fyysinenPaikka"]["pituusaste"] = x; 
+        unit["fyysinenPaikka"]["leveysaste"] = obj.y; 
+        unit["fyysinenPaikka"]["pituusaste"] = obj.x; 
         unit["fyysinenPaikka"]["koordinaattiAsettuKasin"] = "True"
         unit["fyysinenPaikka"]["osoitteet"] = []
         osoite = {}
@@ -63,11 +65,11 @@ def get_charging_station_units(koodi):
         unit["tila"]["koodi"] = "1"
         unit["tila"]["nimi"] = "Aktiivinen, julkaistu"
         unit["kuvaus_kieliversiot"] = {}
-        unit["kuvaus_kieliversiot"]["fi"] = type      
-        unit["kuvaus_kieliversiot"]["sv"] = type      
-        unit["kuvaus_kieliversiot"]["en"] = type      
+        unit["kuvaus_kieliversiot"]["fi"] = obj.charger_type      
+        unit["kuvaus_kieliversiot"]["sv"] = obj.charger_type      
+        unit["kuvaus_kieliversiot"]["en"] = obj.charger_type      
         extra = {}
-        extra["type"] = type        
+        extra["charger_type"] = obj.charger_type        
         unit["extra"] = extra
 
         unit["palvelutarjoukset"] = []

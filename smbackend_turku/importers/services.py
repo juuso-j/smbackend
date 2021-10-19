@@ -56,6 +56,7 @@ class ServiceImporter:
             service_classes += get_gas_filling_station_service_node(ylatason_koodi="1_35", koodi="1_99")
         koodit = [service["koodi"] for service in service_classes]
         print(koodit)
+        breakpoint()
         tree = self._build_servicetree(service_classes)
         # for service in service_classes:
         #     breakpoint()

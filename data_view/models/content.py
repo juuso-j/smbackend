@@ -16,7 +16,7 @@ class BaseStation(models.Model):
 class ChargingStationContent(BaseStation):
     url = models.URLField(null=True)
     charger_type = models.CharField(max_length=32, null=True)
-    unit = models.OneToOneField(
+    mobile_unit = models.OneToOneField(
         MobileUnit, 
         related_name="charging_station_content",
         on_delete=models.CASCADE, 
@@ -32,7 +32,7 @@ class GasFillingStationContent(BaseStation):
     #     object_id_field="content_id",
     #     related_query_name="contents"
     #   )
-    unit = models.OneToOneField(
+    mobile_unit = models.OneToOneField(
         MobileUnit, 
         related_name="gas_filling_station_content",
         on_delete=models.CASCADE, 
@@ -42,7 +42,7 @@ class GasFillingStationContent(BaseStation):
 class StatueContent(models.Model):
     #name = models.CharField(max_length=32, null=True)
     description = models.TextField(null=True)
-    unit = models.OneToOneField(
+    mobile_unit = models.OneToOneField(
         MobileUnit, 
         related_name="statue_content",
         on_delete=models.CASCADE, 
@@ -50,7 +50,7 @@ class StatueContent(models.Model):
 
 class WalkingRouteContent(models.Model):
     #name = models.CharField(max_length=32, null=True)
-    unit = models.OneToOneField(
+    mobile_unit = models.OneToOneField(
         MobileUnit, 
         related_name="walking_route_content",
         on_delete=models.CASCADE, 
