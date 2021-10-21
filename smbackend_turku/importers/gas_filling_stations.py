@@ -110,7 +110,7 @@ def get_gas_filling_station_service_node(
     service_node["palvelut"].append(palvelu)
     return [service_node]
 
-def get_gas_filling_station_service(self):
+def get_gas_filling_station_service():
     service = {}
     service["koodi"] = ServiceCodes.GAS_FILLING_STATION
     service["tila"] = {}
@@ -144,6 +144,12 @@ ROOT_FIELD_MAPPING = {
     "sahkoposti": "email",
 }
 from smbackend_turku.importers.utils import (
+    convert_code_to_int,
+    get_turku_resource,
+    set_syncher_object_field,
+    set_syncher_tku_translated_field,
+)
+from smbackend_turku.importers.utils import (
     get_localized_value,
     get_turku_resource,
     get_weekday_str,
@@ -156,7 +162,8 @@ from datetime import date, datetime
 import pytz
 
 UTC_TIMEZONE = pytz.timezone("UTC")
-
+SOURCE_DATA_SRID = 4326
+SERVICE_NODE_ID = 10001
 def import_gas():
     unitsyncher = ModelSyncher(Unit.objects.all(), lambda obj: obj.id)
 
@@ -169,16 +176,76 @@ def import_gas():
         if not obj:
             obj = Unit(id=unit_id)
             obj._changed = True
-        point = Point(data_obj.x, data_obj.y, srid=settings.DEFAULT_SRID)
-        set_syncher_object_field(obj, "location", point)
+        point = Point(data_obj.x, data_obj.y, srid=SOURCE_DATA_SRID)
+        set_syncher_object_field(obj, "location", point)    
+        set_syncher_object_field(obj, "name", data_obj.name)
+        set_syncher_object_field(obj, "street_address", data_obj.address)
 
+        service_id = "4242"
+        try:
+            service = Service.objects.get(id=service_id)
+        except Service.DoesNotExist:
+            # TODO fail the unit node completely here?
+            logger.warning(
+                'Service "{}" does not exist!'.format(service_id)
+            )
+            continue
+        UnitServiceDetails.objects.get_or_create(unit=obj, service=service)
+
+        service_nodes = ServiceNode.objects.filter(related_services=service)
+        obj.service_nodes.add(*service_nodes)
         if obj._changed:
             obj.last_modified_time = datetime.now(UTC_TIMEZONE)
             obj.save()
     
         unitsyncher.mark(obj)
 
-    breakpoint()
+    #breakpoint()
+
+
+def import_gas_service_node():
+    nodesyncher = ModelSyncher(ServiceNode.objects.all(), lambda obj: obj.id)
+    node_id = SERVICE_NODE_ID
+    obj = nodesyncher.get(node_id)
+
+    if not obj:
+        obj = ServiceNode(id=node_id)
+        obj._changed = True
+
+    name = "TestiKaasu"
+    ylatason_koodi = "1_35"
+    set_syncher_object_field(obj, "name", name)
+    set_syncher_object_field(obj, "name_fi", name)
+    parent_id = convert_code_to_int(ylatason_koodi)
+    parent = nodesyncher.get(parent_id)
+    if obj.parent != parent:
+        obj.parent = parent
+        obj._changed = True
+
+    if obj._changed:
+        obj.last_modified_time = datetime.now(UTC_TIMEZONE)
+        obj.save()
+    #nodesyncher.finish()
+    
+
+def import_gas_service():
+    # TODO add filter to get gas stations.
+    servicesyncher = ModelSyncher(Service.objects.all(), lambda obj: obj.id)
+    koodi = 4242
+    obj = servicesyncher.get(koodi)
+    if not obj:
+        obj = Service(id=koodi, clarification_enabled=False, period_enabled=False)
+        obj._changed = True
+
+    set_syncher_object_field(obj, "name", "Testikaasu service")
+    if obj._changed:
+        print("saving testi kaasu asema")
+        obj.last_modified_time = datetime.now(UTC_TIMEZONE)
+        obj.save()
+
+    service_node = ServiceNode(id=SERVICE_NODE_ID)
+    #breakpoint()
+    service_node.related_services.add(koodi)
 
 if __name__ == "__main__":
 

@@ -133,7 +133,7 @@ class UnitImporter:
 
         self.unitsyncher.finish()
         update_service_node_counts()
-        remove_empty_service_nodes(self.logger)
+        #remove_empty_service_nodes(self.logger)
 
     def _get_next_koodi(self, units):
         """

@@ -17,10 +17,13 @@ from smbackend_turku.importers.utils import (
 from .gas_filling_stations import (
     get_gas_filling_station_service,
     get_gas_filling_station_service_node,
+    import_gas_service_node,
+    import_gas_service,
 )
 from .charging_stations import (
     get_charging_station_service,
     get_charging_station_service_node,
+
 )
 UTC_TIMEZONE = pytz.timezone("UTC")
 
@@ -43,24 +46,28 @@ class ServiceImporter:
         self.test = test
 
     def import_services(self):
+        print("gas import service")
         keyword_handler = KeywordHandler(logger=self.logger)
         self._import_services(keyword_handler)
         self._import_service_nodes(keyword_handler)
+        import_gas_service()
+        import_gas_service_node()
 
 
 
     def _import_service_nodes(self, keyword_handler):
+        print("gas service node import")
         service_classes = get_turku_resource("palveluluokat", "palvelukuokat")
         if not self.test:
             service_classes += get_charging_station_service_node(ylatason_koodi="1_35", koodi="2_98")
             service_classes += get_gas_filling_station_service_node(ylatason_koodi="1_35", koodi="1_99")
         koodit = [service["koodi"] for service in service_classes]
         print(koodit)
-        breakpoint()
+        # return a list
         tree = self._build_servicetree(service_classes)
         # for service in service_classes:
-        #     breakpoint()
         for parent_node in tree:
+            # returns dicts
             if parent_node["koodi"] in BLACKLISTED_SERVICE_NODES:
                 continue
             self._handle_service_node(parent_node, keyword_handler)
