@@ -11,10 +11,10 @@ from smbackend_turku.importers.accessibility import import_accessibility
 from smbackend_turku.importers.addresses import import_addresses
 from smbackend_turku.importers.services import import_services
 from smbackend_turku.importers.units import import_units
-
+from smbackend_turku.importers.gas_filling_stations import import_gas_filling_stations
 class Command(BaseCommand):
     help = "Import services from City of Turku APIs"
-    importer_types = ["services", "accessibility", "units", "addresses"]
+    importer_types = ["services", "accessibility", "units", "addresses", "gas_filling_stations"]
 
     supported_languages = [lang[0] for lang in settings.LANGUAGES]
 
@@ -63,6 +63,9 @@ class Command(BaseCommand):
     def import_addresses(self):
         return import_addresses(logger=self.logger)
 
+    @db.transaction.atomic
+    def import_gas_filling_stations(self):
+        import_gas_filling_stations(logger=self.logger)
     # Activate the default language for the duration of the import
     # to make sure translated fields are populated correctly.
     @translation.override(settings.LANGUAGES[0][0])

@@ -31,7 +31,7 @@ from smbackend_turku.importers.utils import (
     set_syncher_object_field,
     set_syncher_tku_translated_field,
 )
-from .gas_filling_stations import get_gas_filling_station_units, import_gas
+#from .gas_filling_stations import get_gas_filling_station_units, import_gas
 from .charging_stations import get_charging_station_units
 UTC_TIMEZONE = pytz.timezone("UTC")
 
@@ -117,14 +117,14 @@ class UnitImporter:
         self.test = test
 
     def import_units(self):
-        import_gas()
+        #import_gas()
         units = get_turku_resource("palvelupisteet", "palvelupisteet")
         if not self.test:
 
-            units += get_gas_filling_station_units(
-                self._get_next_koodi(units), 
-                to_database=True
-            )  
+            # units += get_gas_filling_station_units(
+            #     self._get_next_koodi(units), 
+            #     to_database=True
+            # )  
             units += get_charging_station_units(self._get_next_koodi(units))        
         # units = get_gas_filling_station_units(10000)        
         
@@ -133,7 +133,8 @@ class UnitImporter:
 
         self.unitsyncher.finish()
         update_service_node_counts()
-        #remove_empty_service_nodes(self.logger)
+        # NOTE commented this
+        remove_empty_service_nodes(self.logger)
 
     def _get_next_koodi(self, units):
         """

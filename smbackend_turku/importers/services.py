@@ -14,12 +14,12 @@ from smbackend_turku.importers.utils import (
     set_syncher_object_field,
     set_syncher_tku_translated_field,
 )
-from .gas_filling_stations import (
-    get_gas_filling_station_service,
-    get_gas_filling_station_service_node,
-    import_gas_service_node,
-    import_gas_service,
-)
+# from .gas_filling_stations import (
+#     get_gas_filling_station_service,
+#     get_gas_filling_station_service_node,
+#     import_gas_service_node,
+#     import_gas_service,
+# )
 from .charging_stations import (
     get_charging_station_service,
     get_charging_station_service_node,
@@ -46,21 +46,19 @@ class ServiceImporter:
         self.test = test
 
     def import_services(self):
-        print("gas import service")
         keyword_handler = KeywordHandler(logger=self.logger)
         self._import_services(keyword_handler)
         self._import_service_nodes(keyword_handler)
-        import_gas_service()
-        import_gas_service_node()
+        #import_gas_service()
+        #import_gas_service_node()
 
 
 
     def _import_service_nodes(self, keyword_handler):
-        print("gas service node import")
         service_classes = get_turku_resource("palveluluokat", "palvelukuokat")
         if not self.test:
             service_classes += get_charging_station_service_node(ylatason_koodi="1_35", koodi="2_98")
-            service_classes += get_gas_filling_station_service_node(ylatason_koodi="1_35", koodi="1_99")
+            #service_classes += get_gas_filling_station_service_node(ylatason_koodi="1_35", koodi="1_99")
         koodit = [service["koodi"] for service in service_classes]
         print(koodit)
         # return a list
@@ -76,7 +74,7 @@ class ServiceImporter:
     def _import_services(self, keyword_handler):
         services = get_turku_resource("palvelut", "palvelut")
         if not self.test:
-            services += get_gas_filling_station_service()
+            #services += get_gas_filling_station_service()
             services += get_charging_station_service()
         for service in services:
             self._handle_service(service, keyword_handler)
