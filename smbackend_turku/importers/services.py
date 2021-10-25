@@ -14,17 +14,7 @@ from smbackend_turku.importers.utils import (
     set_syncher_object_field,
     set_syncher_tku_translated_field,
 )
-# from .gas_filling_stations import (
-#     get_gas_filling_station_service,
-#     get_gas_filling_station_service_node,
-#     import_gas_service_node,
-#     import_gas_service,
-# )
-from .charging_stations import (
-    get_charging_station_service,
-    get_charging_station_service_node,
 
-)
 UTC_TIMEZONE = pytz.timezone("UTC")
 
 SERVICE_AS_SERVICE_NODE_PREFIX = "service_"
@@ -56,9 +46,9 @@ class ServiceImporter:
 
     def _import_service_nodes(self, keyword_handler):
         service_classes = get_turku_resource("palveluluokat", "palvelukuokat")
-        if not self.test:
-            service_classes += get_charging_station_service_node(ylatason_koodi="1_35", koodi="2_98")
-            #service_classes += get_gas_filling_station_service_node(ylatason_koodi="1_35", koodi="1_99")
+        # if not self.test:
+        #     service_classes += get_charging_station_service_node(ylatason_koodi="1_35", koodi="2_98")
+        #     #service_classes += get_gas_filling_station_service_node(ylatason_koodi="1_35", koodi="1_99")
         koodit = [service["koodi"] for service in service_classes]
         print(koodit)
         # return a list
@@ -73,9 +63,9 @@ class ServiceImporter:
 
     def _import_services(self, keyword_handler):
         services = get_turku_resource("palvelut", "palvelut")
-        if not self.test:
-            #services += get_gas_filling_station_service()
-            services += get_charging_station_service()
+        # if not self.test:
+        #     #services += get_gas_filling_station_service()
+        #     services += get_charging_station_service()
         for service in services:
             self._handle_service(service, keyword_handler)
         self.servicesyncher.finish()

@@ -31,8 +31,7 @@ from smbackend_turku.importers.utils import (
     set_syncher_object_field,
     set_syncher_tku_translated_field,
 )
-#from .gas_filling_stations import get_gas_filling_station_units, import_gas
-from .charging_stations import get_charging_station_units
+
 UTC_TIMEZONE = pytz.timezone("UTC")
 
 ROOT_FIELD_MAPPING = {
@@ -119,13 +118,13 @@ class UnitImporter:
     def import_units(self):
         #import_gas()
         units = get_turku_resource("palvelupisteet", "palvelupisteet")
-        if not self.test:
+        #if not self.test:
 
             # units += get_gas_filling_station_units(
             #     self._get_next_koodi(units), 
             #     to_database=True
             # )  
-            units += get_charging_station_units(self._get_next_koodi(units))        
+            #units += get_charging_station_units(self._get_next_koodi(units))        
         # units = get_gas_filling_station_units(10000)        
         
         for unit in units:
