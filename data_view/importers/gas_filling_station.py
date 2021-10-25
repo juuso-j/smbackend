@@ -21,51 +21,65 @@ class GasFillingStation:
         self.x = attributes.get("LON",0)
         self.y = attributes.get("LAT",0)               
         self.name = attributes.get("STATION_NAME", "")
-        self.address = attributes.get("ADDRESS", "")
+        self.address =attributes.get("ADDRESS", "")        
         self.zip_code = attributes.get("ZIP_CODE", "")
-        self.city = attributes.get("CITY", "")
-        self.address += ", " + self.zip_code + " " + self.city
+        self.city = attributes.get("CITY", "")      
         self.operator = attributes.get("OPERATOR", "")
         self.lng_cng = attributes.get("LNG_CNG", "") 
-        # class GasFillingStationImporter:
+        # address fields for service unit model
+        self.street_address = self.address.split(",")[0]        
+        self.address_postal_full = "{} {} {}"\
+            .format(self.address, self.zip_code, self.city)
 
-#     def __init__(self, logger=None, importer=None, test=False):
-#         self.logger = logger
-#         self.importer = importer
-#         self.test = test    
-    
-    
-#     def import_gas_filling_stations(self):
-#         json_data = fetch_json(GAS_FILLING_STATIONS_URL)
-#         srid, filtered_json = self.get_json_filtered_by_location(json_data)
-#         delete_tables(ContentTypes.GAS_FILLING_STATION)
-#         self.save_to_database(filtered_json, srid)
-
-
-def get_json_filtered_by_location(json_data):
+def get_filtered_gas_filling_station_objects(): 
+    """
+    Returns a list of GasFillingStation objects that are filtered by location.
+    """   
     geometry_data = fetch_json(GEOMETRY_URL) 
-    polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])
-    filtered_data = []
+    # Polygon used the detect if point intersects. i.e. is in the boundries.
+    polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])  
+    json_data = fetch_json(GAS_FILLING_STATIONS_URL)
     #srid = json_data["spatialReference"]["wkid"]
     # NOTE, hack to fix srid 102100 causes "crs not found"
-    srid = 3857    
-
-    for data in json_data["features"]:
-        lon = data["attributes"].get("LON",0)
-        lat = data["attributes"].get("LAT",0)
-        point = Point(lon, lat)
+    srid = 3857 
+    # Create list of GasFillingStation objects
+    objects = [GasFillingStation(data, srid) for data in json_data["features"]]
+    filtered_objects = []
+    # Filter objects
+    for object in objects:
+        point = Point(object.x, object.y)        
         if polygon.intersects(point):
-            obj = GasFillingStation(data, srid)
-            filtered_data.append(obj)
+            filtered_objects.append(object)
     logger.info("Filtered: {} gas filling stations by location to: {}."\
-        .format(len(json_data["features"]), len(filtered_data)))
-    return filtered_data
+        .format(len(json_data["features"]), len(filtered_objects)))        
+    return filtered_objects
+   
+
+
+# def get_json_filtered_by_location(json_data):
+#     geometry_data = fetch_json(GEOMETRY_URL) 
+#     polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])
+#     filtered_data = []
+#     #srid = json_data["spatialReference"]["wkid"]
+#     # NOTE, hack to fix srid 102100 causes "crs not found"
+#     srid = 3857    
+
+#     for data in json_data["features"]:
+#         lon = data["attributes"].get("LON",0)
+#         lat = data["attributes"].get("LAT",0)
+#         point = Point(lon, lat)
+#         if polygon.intersects(point):
+#             object = GasFillingStation(data, srid)
+#             filtered_data.append(object)
+#     logger.info("Filtered: {} gas filling stations by location to: {}."\
+#         .format(len(json_data["features"]), len(filtered_data)))
+#     return filtered_data
+
 
 @db.transaction.atomic  
-def save_to_database(objs, delete_table=True):
+def save_to_database(objects, delete_table=True):
     if delete_table:
-        delete_tables(ContentTypes.GAS_FILLING_STATION)
-        
+        delete_tables(ContentTypes.GAS_FILLING_STATION)        
     description = "Gas filling stations in province of SouthWest Finland."
     content_type = ContentTypes.objects.get_or_create(
         type_name=ContentTypes.GAS_FILLING_STATION,
@@ -73,25 +87,19 @@ def save_to_database(objs, delete_table=True):
         class_name=ContentTypes.CONTENT_TYPES[ContentTypes.GAS_FILLING_STATION],
         description=description
     )[0]
-    for obj in objs:
-        is_active = obj.is_active
-        #content_type_name = Unit.GAS_FILLING_STATION 
-        # attributes = data.get("attributes", None)
-        # geometry = data.get("geometry", None)
-        # if not attributes or not geometry:
-        #     continue
-
-        x = obj.x
-        y = obj.y 
-        point = Point(x,y,srid=obj.srid)
+    for object in objects:
+        is_active = object.is_active       
+        x = object.x
+        y = object.y 
+        point = Point(x,y,srid=object.srid)
         point.transform(settings.DEFAULT_SRID)
-        name = obj.name
-        address = obj.address
-        zip_code = obj.zip_code
-        city = obj.city
-        address += ", " + obj.zip_code + " " + obj.city
-        operator = obj.operator
-        lng_cng = obj.lng_cng 
+        name = object.name
+        address = object.address
+        #zip_code = object.zip_code
+        #city = object.city
+        address += ", " + object.zip_code + " " + object.city
+        operator = object.operator
+        lng_cng = object.lng_cng 
         mobile_unit = MobileUnit.objects.create(
             is_active=is_active,
             name=name,

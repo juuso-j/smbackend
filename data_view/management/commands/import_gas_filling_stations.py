@@ -4,12 +4,10 @@ import logging
 from django.core.management import BaseCommand
 
 from data_view.importers.gas_filling_station import(
-    get_json_filtered_by_location,
-    delete_tables,
+    get_filtered_gas_filling_station_objects,
     save_to_database,
     GAS_FILLING_STATIONS_URL
 )
-from data_view.importers.utils import fetch_json
 from data_view.models import ContentTypes
 logger = logging.getLogger("django")
 
@@ -31,8 +29,6 @@ class Command(BaseCommand):
             json_data = json.load(f)
         else:
             logger.info("Fetcing gas filling stations from: {}"\
-                .format(GAS_FILLING_STATIONS_URL))
-            json_data = fetch_json(GAS_FILLING_STATIONS_URL)
-        filtered_json = get_json_filtered_by_location(json_data)
-        #delete_tables(ContentTypes.GAS_FILLING_STATION)
-        save_to_database(filtered_json)
+                .format(GAS_FILLING_STATIONS_URL))            
+            objects = get_filtered_gas_filling_station_objects()       
+            save_to_database(objects)

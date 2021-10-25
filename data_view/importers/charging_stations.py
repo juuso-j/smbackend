@@ -21,37 +21,53 @@ class ChargingStation:
         self.is_active = True
         self.srid=srid       
         geometry = elem.get("geometry", None)
-        attributes = elem.get("attributes", None)
-        #if not attributes or not geometry:
-        #     continue
-
+        attributes = elem.get("attributes", None)      
         self.x = geometry.get("x",0)
-        self.y = geometry.get("y",0)         
-        #point = Point(x,y, srid=srid) 
-        #point.transform(settings.DEFAULT_SRID)    
+        self.y = geometry.get("y",0)      
         self.name = attributes.get("NAME", "")
         self.address = attributes.get("ADDRESS", "")
         self.url = attributes.get("URL", "")
         self.charger_type = attributes.get("TYPE", "")        
        
 
-def get_json_filtered_by_location(json_data):
+# def get_json_filtered_by_location(json_data):
+#     geometry_data = fetch_json(GEOMETRY_URL) 
+#     polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])
+#     filtered_data = []
+#     srid = json_data["spatialReference"]["wkid"]
+#     for data in json_data["features"]:
+#         x = data["geometry"].get("x",0)
+#         y = data["geometry"].get("y",0)
+#         point = Point(x, y)
+#         if polygon.intersects(point):
+#             obj = ChargingStation(data, srid)
+#             filtered_data.append(obj)
+#     logger.info("Filtered: {} charging stations by location to: {}."\
+#         .format(len(json_data["features"]), len(filtered_data)))
+        
+#     return filtered_data
+
+def get_filtered_charging_station_objects(): 
+    """
+    Returns a list of ChargingStation objects that are filtered by location.
+    """   
     geometry_data = fetch_json(GEOMETRY_URL) 
-    polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])
-    filtered_data = []
+    # Polygon used the detect if point intersects. i.e. is in the boundries.
+    polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])  
+    json_data = fetch_json(CHARGING_STATIONS_URL)
     srid = json_data["spatialReference"]["wkid"]
-    for data in json_data["features"]:
-        x = data["geometry"].get("x",0)
-        y = data["geometry"].get("y",0)
-        point = Point(x, y)
+    objects = [ChargingStation(data, srid) for data in json_data["features"]]
+    filtered_objects = []
+    # Filter objects
+    for object in objects:
+        point = Point(object.x, object.y)        
         if polygon.intersects(point):
-            obj = ChargingStation(data, srid)
-            filtered_data.append(obj)
-    logger.info("Filtered: {} charging stations by location to: {}."\
-        .format(len(json_data["features"]), len(filtered_data)))
-        
-    return filtered_data
-        
+            filtered_objects.append(object)
+    logger.info("Filtered: {} gas filling stations by location to: {}."\
+        .format(len(json_data["features"]), len(filtered_objects)))        
+    return filtered_objects
+
+
 @db.transaction.atomic    
 def save_to_database(objs, delete_table=True):
     if delete_table:
@@ -65,12 +81,7 @@ def save_to_database(objs, delete_table=True):
     )[0]
 
     for obj in objs:
-        is_active = obj.is_active       
-        # geometry = data.get("geometry", None)
-        # attributes = data.get("attributes", None)
-        # if not attributes or not geometry:
-        #     continue
-
+        is_active = obj.is_active     
         x = obj.x
         y = obj.y         
         point = Point(x,y, srid=obj.srid) 
