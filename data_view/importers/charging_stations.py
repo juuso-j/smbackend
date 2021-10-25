@@ -14,38 +14,52 @@ CHARGING_STATIONS_URL = "https://services1.arcgis.com/rhs5fjYxdOG1Et61/ArcGIS/re
 GEOMETRY_ID = 11 #  11 Varsinaissuomi # 10 Uusim
 GEOMETRY_URL = "https://tie.digitraffic.fi/api/v3/data/traffic-messages/area-geometries?id={id}&lastUpdated=false".format(id=GEOMETRY_ID)
 
+#CHARGING_STATIONS_URL = "https://latauskartta.fi/backend.php?tagFilter=false&idlimit=0&action=getData&editmode=false&chargers_type2=true&chargers_spc=true&chargers_chademo=true&chargers_ccs=true&chargers_hpc=true&chargers_tyomaa=false&unverified=false"
 
 class ChargingStation:
 
     def __init__(self, elem, srid=settings.DEFAULT_SRID):
         self.is_active = True
-        self.srid=srid       
         geometry = elem.get("geometry", None)
         attributes = elem.get("attributes", None)      
+        # self.srid = srid
+        x = geometry.get("x",0)
+        y = geometry.get("y",0) 
+        self.point = Point(x, y, srid=srid)
+        self.name = attributes.get("NAME", "")
+        self.address = attributes.get("ADDRESS", "")
+        self.url = attributes.get("URL", "")
+        self.charger_type = attributes.get("TYPE", "")        
+    
+    def __init__OLD(self, elem, srid=settings.DEFAULT_SRID):
+        self.is_active = True
+     
+        geometry = elem.get("geometry", None)
+        attributes = elem.get("attributes", None)      
+        x = geometry.get("x",0)
+        y = geometry.get("y",0)     
+        self.point(x, y, srid=srid) 
+     
         self.x = geometry.get("x",0)
         self.y = geometry.get("y",0)      
         self.name = attributes.get("NAME", "")
         self.address = attributes.get("ADDRESS", "")
         self.url = attributes.get("URL", "")
-        self.charger_type = attributes.get("TYPE", "")        
-       
+        self.charger_type = attributes.get("TYPE", "")           
 
-# def get_json_filtered_by_location(json_data):
-#     geometry_data = fetch_json(GEOMETRY_URL) 
-#     polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])
-#     filtered_data = []
-#     srid = json_data["spatialReference"]["wkid"]
-#     for data in json_data["features"]:
-#         x = data["geometry"].get("x",0)
-#         y = data["geometry"].get("y",0)
-#         point = Point(x, y)
-#         if polygon.intersects(point):
-#             obj = ChargingStation(data, srid)
-#             filtered_data.append(obj)
-#     logger.info("Filtered: {} charging stations by location to: {}."\
-#         .format(len(json_data["features"]), len(filtered_data)))
-        
-#     return filtered_data
+
+def build_and_filter_objects_from_locations(locations):
+
+    for index in locations.keys():
+        location = locations[index]
+        breakpoint()
+
+
+def get_filtered_charging_station_objects_TODO(): 
+    json_data = fetch_json(CHARGING_STATIONS_URL)
+    locations = json_data["locations"]
+   
+    breakpoint()
 
 def get_filtered_charging_station_objects(): 
     """
@@ -56,20 +70,20 @@ def get_filtered_charging_station_objects():
     polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])  
     json_data = fetch_json(CHARGING_STATIONS_URL)
     srid = json_data["spatialReference"]["wkid"]
-    objects = [ChargingStation(data, srid) for data in json_data["features"]]
+    objects = [ChargingStation(data, srid=srid) for data in json_data["features"]]
     filtered_objects = []
     # Filter objects
-    for object in objects:
-        point = Point(object.x, object.y)        
-        if polygon.intersects(point):
+    for object in objects:    
+        #point = Point(object.x, object.y)        
+        if polygon.intersects(object.point):
             filtered_objects.append(object)
-    logger.info("Filtered: {} gas filling stations by location to: {}."\
+    logger.info("Filtered: {} charging stations by location to: {}."\
         .format(len(json_data["features"]), len(filtered_objects)))        
     return filtered_objects
 
 
 @db.transaction.atomic    
-def save_to_database(objs, delete_table=True):
+def save_to_database(objects, delete_table=True):
     if delete_table:
         delete_tables(ContentTypes.CHARGING_STATION)
     description = "Charging stations in province of SouthWest Finland."
@@ -80,16 +94,17 @@ def save_to_database(objs, delete_table=True):
         description=description
     )[0]
 
-    for obj in objs:
-        is_active = obj.is_active     
-        x = obj.x
-        y = obj.y         
-        point = Point(x,y, srid=obj.srid) 
-        point.transform(settings.DEFAULT_SRID)    
-        name = obj.name
-        address = obj.address
-        url = obj.url
-        charger_type = obj.charger_type  
+    for object in objects:
+        is_active = object.is_active 
+        # x = object.x
+        # y = object.y      
+        #point = Point(x,y, srid=object.srid) 
+        point = object.point
+        #point.transform(settings.DEFAULT_SRID)  
+        name = object.name
+        address = object.address
+        url = object.url
+        charger_type = object.charger_type  
         mobile_unit = MobileUnit.objects.create(
             is_active=is_active,
             name=name,

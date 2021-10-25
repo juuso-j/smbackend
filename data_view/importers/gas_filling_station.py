@@ -16,10 +16,11 @@ class GasFillingStation:
 
     def __init__(self, elem, srid=settings.DEFAULT_SRID):
         self.is_active = True
-        self.srid = srid
-        attributes = elem.get("attributes")
-        self.x = attributes.get("LON",0)
-        self.y = attributes.get("LAT",0)               
+        attributes = elem.get("attributes")        
+        #self.srid = srid
+        x = attributes.get("LON",0)
+        y = attributes.get("LAT",0)
+        self.point = Point(x, y, srid=srid)              
         self.name = attributes.get("STATION_NAME", "")
         self.address =attributes.get("ADDRESS", "")        
         self.zip_code = attributes.get("ZIP_CODE", "")
@@ -41,14 +42,14 @@ def get_filtered_gas_filling_station_objects():
     json_data = fetch_json(GAS_FILLING_STATIONS_URL)
     #srid = json_data["spatialReference"]["wkid"]
     # NOTE, hack to fix srid 102100 causes "crs not found"
-    srid = 3857 
+    srid = 4326
     # Create list of GasFillingStation objects
-    objects = [GasFillingStation(data, srid) for data in json_data["features"]]
+    objects = [GasFillingStation(data, srid=srid) for data in json_data["features"]]
     filtered_objects = []
     # Filter objects
     for object in objects:
-        point = Point(object.x, object.y)        
-        if polygon.intersects(point):
+        #point = Point(object.x, object.y)        
+        if polygon.intersects(object.point):
             filtered_objects.append(object)
     logger.info("Filtered: {} gas filling stations by location to: {}."\
         .format(len(json_data["features"]), len(filtered_objects)))        
@@ -81,6 +82,8 @@ def save_to_database(objects, delete_table=True):
     if delete_table:
         delete_tables(ContentTypes.GAS_FILLING_STATION)        
     description = "Gas filling stations in province of SouthWest Finland."
+    # Create contet_type ins
+
     content_type = ContentTypes.objects.get_or_create(
         type_name=ContentTypes.GAS_FILLING_STATION,
         name="Gas Filling Station",
@@ -88,11 +91,12 @@ def save_to_database(objects, delete_table=True):
         description=description
     )[0]
     for object in objects:
-        is_active = object.is_active       
-        x = object.x
-        y = object.y 
-        point = Point(x,y,srid=object.srid)
-        point.transform(settings.DEFAULT_SRID)
+        is_active = object.is_active      
+        # x = object.x
+        # y = object.y      
+        # point = Point(x,y, srid=object.srid) 
+        # point.transform(settings.DEFAULT_SRID)  
+        point = object.point
         name = object.name
         address = object.address
         #zip_code = object.zip_code

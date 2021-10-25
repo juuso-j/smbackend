@@ -18,8 +18,6 @@ from services.management.commands.services_import.services import (
     update_service_node_counts,  
 )   
 from smbackend_turku.importers.utils import (
-
-    fetch_json, # TODO, move to stations_utils
     set_syncher_object_field,
     set_syncher_tku_translated_field,
 )
@@ -34,7 +32,6 @@ from smbackend_turku.importers.utils import (
     set_syncher_object_field,
     set_syncher_tku_translated_field,
 )
-
 
 
 UTC_TIMEZONE = pytz.timezone("UTC")
@@ -148,7 +145,9 @@ class GasFillingStationImporter:
             if not obj:
                 obj = Unit(id=unit_id)
                 obj._changed = True
-            point = Point(data_obj.x, data_obj.y, srid=SOURCE_DATA_SRID)
+            #point = Point(data_obj.x, data_obj.y, srid=SOURCE_DATA_SRID)
+            point = data_obj.point
+            point.transform(SOURCE_DATA_SRID)
             set_syncher_object_field(obj, "location", point)    
             set_syncher_tku_translated_field(obj, "name",\
                 create_language_dict(data_obj.name))
@@ -184,6 +183,7 @@ class GasFillingStationImporter:
   
 
 class ChargingStationImporter():
+
     SERVICE_NODE_NAMES = {
         "fi": "Sähkölatausasemat",
         "sv": "Laddplatser",
@@ -201,10 +201,8 @@ class ChargingStationImporter():
 
     def import_charging_stations(self, service_id):
         unitsyncher = ModelSyncher(Unit.objects.filter(services__id=service_id), lambda obj: obj.id)
-
-        filtered_objects = get_filtered_gas_filling_station_objects()
+        filtered_objects = get_filtered_charging_station_objects()
         # Find the highest unit id and add 1. This ensures that we get unique id:s
-        
         id_off =  Unit.objects.all().order_by("-id")[0].id+1
         for i, data_obj in enumerate(filtered_objects):
             unit_id = i + id_off
@@ -212,12 +210,29 @@ class ChargingStationImporter():
             if not obj:
                 obj = Unit(id=unit_id)
                 obj._changed = True
-            point = Point(data_obj.x, data_obj.y, srid=SOURCE_DATA_SRID)
+            #point = Point(data_obj.x, data_obj.y, srid=SOURCE_DATA_SRID)
+            point = data_obj.point
+            point.transform(SOURCE_DATA_SRID)
             set_syncher_object_field(obj, "location", point)    
             set_syncher_tku_translated_field(obj, "name",\
                 create_language_dict(data_obj.name))
-      
-            breakpoint()
+            try:
+                service = Service.objects.get(id=service_id)
+            except Service.DoesNotExist:
+                self.logger.warning(
+                    'Service "{}" does not exist!'.format(service_id)
+                )
+                continue
+            UnitServiceDetails.objects.get_or_create(unit=obj, service=service)
+            service_nodes = ServiceNode.objects.filter(related_services=service)
+            obj.service_nodes.add(*service_nodes)            
+            set_syncher_object_field(obj, "root_service_nodes", obj.get_root_service_nodes()[0])
+            # municipality = get_municipality(data_obj.city)
+            # set_syncher_object_field(obj, "municipality", municipality)            
+            save_object(obj)
+
+        unitsyncher.finish()
+        update_service_node_counts()
        
     
 def import_gas_filling_stations(**kwargs):
@@ -234,4 +249,4 @@ def import_charging_stations(**kwargs):
     service_id = generate_service(service_node_id,\
         importer.SERVICE_NAMES["fi"], importer.SERVICE_NAMES)
     generate_service_node(service_node_id, "Vapaa-aika", importer.SERVICE_NODE_NAMES)
-    importer.import_gas_filling_stations(service_id)
+    importer.import_charging_stations(service_id)
