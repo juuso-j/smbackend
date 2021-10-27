@@ -1,25 +1,22 @@
 from datetime import datetime
 import pytz
 from functools import lru_cache
-
-from django.contrib.gis.geos import Point
 from django.conf import settings
+from requests.api import get
+from munigeo.models import Municipality
 from data_view.importers.gas_filling_station import (
     get_filtered_gas_filling_station_objects  
 )
-
 from data_view.importers.charging_stations import(
    get_filtered_charging_station_objects
 )
-from munigeo.importer.sync import ModelSyncher
-from munigeo.models import Municipality
-
+from .modelsyncher import ModelSyncher as UnitSyncher
 from services.management.commands.services_import.services import (
     update_service_node_counts,  
 )   
-from smbackend_turku.importers.utils import (
-    set_syncher_object_field,
-    set_syncher_tku_translated_field,
+from smbackend_turku.importers.utils import (   
+    set_field,
+    set_tku_translated_field,
 )
 from services.models import (
     Service,
@@ -28,15 +25,8 @@ from services.models import (
     UnitServiceDetails,
 )
 
-from smbackend_turku.importers.utils import (  
-    set_syncher_object_field,
-    set_syncher_tku_translated_field,
-)
-
-
 UTC_TIMEZONE = pytz.timezone("UTC")
 LANGUAGES = [language[0] for language in settings.LANGUAGES]
-
 SOURCE_DATA_SRID = 4326
 
 @lru_cache(None)
@@ -46,75 +36,88 @@ def get_municipality(name):
     except Municipality.DoesNotExist:
         return None
 
-def save_object(obj):
-    if obj._changed:
-        obj.last_modified_time = datetime.now(UTC_TIMEZONE)
-        obj.save()
-
 def create_language_dict(value):
+    """
+    Helper function that generates a dict with elements for every language with
+    the value given as parameter.
+    :param value: the value to be set for all the languages
+    :return: the dict
+    """
     lang_dict = {}
     for lang in LANGUAGES:
         lang_dict[lang] = value
     return lang_dict
 
-def get_serivice_node_id(name):
+def get_first_available_id(model):
+    """
+    Find the highest unit id and add 1. This ensures that we get unique ids.
+    :param model: the model class
+    :return: the highest available id.
+    """
+    return model.objects.all().order_by("-id")[0].id+1
+
+# def get_serivice_node_id(name):
+#     """
+#     Returns the service_node_id by given service_node name
+#     """
+#     service_node = None
+#     service_node_id = None
+#     try:
+#         service_node = ServiceNode.objects.get(name=name)
+#         service_node_id = service_node.id
+#     except ServiceNode.DoesNotExist:    
+#         # Find the highest unit id and add 1. This ensures that we get unique ids           
+#         service_node_id = ServiceNode.objects.all().order_by("-id")[0].id+1   
+#     return service_node_id 
+
+def get_or_generate_service_node(name, parent_name, service_node_names):
+    """
+    If service_node with given name does not exist, creates and sets parent node.
+    :param name: name of the service_node
+    :param parent_name: name of the parent service_node
+    :param service_node_names: dict with names in all languages
+    :return: the id of the service_node 
+    """
     service_node = None
     service_node_id = None
     try:
         service_node = ServiceNode.objects.get(name=name)
-    except ServiceNode.DoesNotExist:    
-        print("Service Node does not exist")   
-        # Highest available id
-        service_node_id = ServiceNode.objects.all().order_by("-id")[0].id+1
-    else:
-        print("Service nodeexists")
         service_node_id = service_node.id
-    return service_node_id 
-
-
-def generate_service_node(service_node_id, parent_name, service_node_names):
-    nodesyncher = ModelSyncher(ServiceNode.objects.all(), lambda obj: obj.id)    
-    obj = nodesyncher.get(service_node_id)
-    if not obj:
-        obj = ServiceNode(id=service_node_id)
-        obj._changed = True
-
-    parent_id = ServiceNode.objects.get(name=parent_name).id
-    parent = nodesyncher.get(parent_id)
-    if obj.parent != parent:
-        obj.parent = parent
-        obj._changed = True
-    set_syncher_tku_translated_field(obj, "name", service_node_names)
-    save_object(obj)
+    except ServiceNode.DoesNotExist:    
+        # Find the highest unit id and add 1. This ensures that we get unique ids
+        service_node_id = get_first_available_id(ServiceNode)
+        service_node = ServiceNode(id=service_node_id)
+        parent_id = ServiceNode.objects.get(name=parent_name).id
+        parent = ServiceNode.objects.get(id=parent_id)        
+        service_node.parent = parent
+        set_tku_translated_field(service_node, "name", service_node_names)
+        service_node.last_modified_time = datetime.now(UTC_TIMEZONE)
+        service_node.save()
+    return service_node_id
                 
-def generate_service(service_node_id, service_name, service_names):
-    servicesyncher = ModelSyncher(
-        Service.objects.filter(name=service_name), 
-        lambda obj: obj.id
-        )
-
+def get_or_generate_service(service_node_id, service_name, service_names):  
+    """
+    If service with given service_name does not exist, creates and sets to service_node
+    :param service_node_id: the id of the service_node to which the service will have a relation
+    :param service_name: name of the service
+    :param service_names: dict with names in all languages
+    :return: the id of the service
+    """
     service = None
+    service_id = None
     try:
         service = Service.objects.get(name=service_name)
+        service_id = service.id
     except Service.DoesNotExist:    
         print("srevice does not exist")   
-        # Highest available id
-        service_id = Service.objects.all().order_by("-id")[0].id+1
-    else:
-        print("exists")
-        service_id = service.id
-
-    obj = servicesyncher.get(service_id)
-    if not obj:
-        obj = Service(id=service_id, clarification_enabled=False, period_enabled=False)
-        obj._changed = True
-
-    set_syncher_tku_translated_field(obj, "name", service_names)     
-    service_node = ServiceNode(id=service_node_id)
-    service_node.related_services.add(service_id)
-    save_object(obj)
-    # TODO, why finish destroys the service?
-    #servicesyncher.finish()
+        # Find the highest unit id and add 1. This ensures that we get unique ids
+        service_id = get_first_available_id(Service)
+        service = Service(id=service_id, clarification_enabled=False, period_enabled=False)   
+        set_tku_translated_field(service, "name", service_names)     
+        service_node = ServiceNode(id=service_node_id)
+        service_node.related_services.add(service_id)
+        service.last_modified_time = datetime.now(UTC_TIMEZONE)
+        service.save()   
     return service_id
 
 class GasFillingStationImporter:
@@ -135,35 +138,31 @@ class GasFillingStationImporter:
         self.test = test   
 
     def import_gas_filling_stations(self, service_id):
-        unitsyncher = ModelSyncher(Unit.objects.filter(services__id=service_id), lambda obj: obj.id)
+        self.logger.info("Importing gas filling stations...")       
+        Unit.objects.filter(services__id=service_id).delete()      
+        id_off = get_first_available_id(Unit)
         filtered_objects = get_filtered_gas_filling_station_objects()
-        # Find the highest unit id and add 1. This ensures that we get unique id:s
-        id_off =  Unit.objects.all().order_by("-id")[0].id+1
+        
         for i, data_obj in enumerate(filtered_objects):
-            unit_id = i + id_off
-            obj = unitsyncher.get(unit_id)
-            if not obj:
-                obj = Unit(id=unit_id)
-                obj._changed = True
-            #point = Point(data_obj.x, data_obj.y, srid=SOURCE_DATA_SRID)
+            unit_id = i + id_off            
+            obj = Unit(id=unit_id)            
             point = data_obj.point
             point.transform(SOURCE_DATA_SRID)
-            set_syncher_object_field(obj, "location", point)    
-            set_syncher_tku_translated_field(obj, "name",\
+            set_field(obj, "location", point)    
+            set_tku_translated_field(obj, "name",\
                 create_language_dict(data_obj.name))
-            set_syncher_tku_translated_field(obj, "street_address",\
+            set_tku_translated_field(obj, "street_address",\
                 create_language_dict(data_obj.street_address))
-            set_syncher_tku_translated_field(obj, "address_postal_full",\
+            set_tku_translated_field(obj, "address_postal_full",\
                 create_language_dict(data_obj.address_postal_full))
-            set_syncher_object_field(obj, "address_zip", data_obj.zip_code)  
-         
+            set_field(obj, "address_zip", data_obj.zip_code)           
             description = "{} {}".format(data_obj.operator, data_obj.lng_cng)            
-            set_syncher_tku_translated_field(obj, "description",\
+            set_tku_translated_field(obj, "description",\
                 create_language_dict(description))
             extra = {}
             extra["operator"] = data_obj.operator
             extra["lng_cng"] = data_obj.lng_cng
-            set_syncher_object_field(obj, "extra", extra) 
+            set_field(obj, "extra", extra) 
             try:
                 service = Service.objects.get(id=service_id)
             except Service.DoesNotExist:
@@ -174,11 +173,11 @@ class GasFillingStationImporter:
             UnitServiceDetails.objects.get_or_create(unit=obj, service=service)
             service_nodes = ServiceNode.objects.filter(related_services=service)
             obj.service_nodes.add(*service_nodes)            
-            set_syncher_object_field(obj, "root_service_nodes", obj.get_root_service_nodes()[0])
+            set_field(obj, "root_service_nodes", obj.get_root_service_nodes()[0])
             municipality = get_municipality(data_obj.city)
-            set_syncher_object_field(obj, "municipality", municipality)            
-            save_object(obj)
-        unitsyncher.finish()
+            set_field(obj, "municipality", municipality)  
+            obj.last_modified_time = datetime.now(UTC_TIMEZONE)
+            obj.save()
         update_service_node_counts()
   
 
@@ -200,22 +199,29 @@ class ChargingStationImporter():
         self.test = test 
 
     def import_charging_stations(self, service_id):
-        unitsyncher = ModelSyncher(Unit.objects.filter(services__id=service_id), lambda obj: obj.id)
+        self.logger.info("Importing charging stations...")
+        Unit.objects.filter(services__id=service_id).delete()
         filtered_objects = get_filtered_charging_station_objects()
-        # Find the highest unit id and add 1. This ensures that we get unique id:s
-        id_off =  Unit.objects.all().order_by("-id")[0].id+1
+        id_off =  get_first_available_id(Unit)
         for i, data_obj in enumerate(filtered_objects):
             unit_id = i + id_off
-            obj = unitsyncher.get(unit_id)
-            if not obj:
-                obj = Unit(id=unit_id)
-                obj._changed = True
-            #point = Point(data_obj.x, data_obj.y, srid=SOURCE_DATA_SRID)
+            obj = Unit(id=unit_id)           
             point = data_obj.point
             point.transform(SOURCE_DATA_SRID)
-            set_syncher_object_field(obj, "location", point)    
-            set_syncher_tku_translated_field(obj, "name",\
+            set_field(obj, "location", point)    
+            set_tku_translated_field(obj, "name",\
                 create_language_dict(data_obj.name))
+            set_tku_translated_field(obj, "street_address",\
+                create_language_dict(data_obj.street_address))
+            set_tku_translated_field(obj, "address_postal_full",\
+                create_language_dict(data_obj.address_postal_full))
+            set_field(obj, "address_zip", data_obj.zip_code)  
+            set_tku_translated_field(obj, "description",\
+                create_language_dict(data_obj.charger_type))
+            extra = {}
+            extra["charger_type"] = data_obj.charger_type
+            set_field(obj, "extra", extra) 
+            set_field(obj, "www", data_obj.url)
             try:
                 service = Service.objects.get(id=service_id)
             except Service.DoesNotExist:
@@ -226,27 +232,26 @@ class ChargingStationImporter():
             UnitServiceDetails.objects.get_or_create(unit=obj, service=service)
             service_nodes = ServiceNode.objects.filter(related_services=service)
             obj.service_nodes.add(*service_nodes)            
-            set_syncher_object_field(obj, "root_service_nodes", obj.get_root_service_nodes()[0])
-            # municipality = get_municipality(data_obj.city)
-            # set_syncher_object_field(obj, "municipality", municipality)            
-            save_object(obj)
-
-        unitsyncher.finish()
+            set_field(obj, "root_service_nodes", obj.get_root_service_nodes()[0])
+            municipality = get_municipality(data_obj.city)
+            set_field(obj, "municipality", municipality)            
+            obj.last_modified_time = datetime.now(UTC_TIMEZONE)
+            obj.save()
         update_service_node_counts()
        
     
 def import_gas_filling_stations(**kwargs):
     importer = GasFillingStationImporter(**kwargs)  
-    service_node_id = get_serivice_node_id(importer.SERVICE_NODE_NAMES["fi"]) 
-    service_id = generate_service(service_node_id,\
+    service_node_id = get_or_generate_service_node(importer.SERVICE_NODE_NAMES["fi"],\
+        "Vapaa-aika", importer.SERVICE_NODE_NAMES)
+    service_id = get_or_generate_service(service_node_id,\
         importer.SERVICE_NAMES["fi"], importer.SERVICE_NAMES)
-    generate_service_node(service_node_id, "Vapaa-aika", importer.SERVICE_NODE_NAMES)
     importer.import_gas_filling_stations(service_id)
 
 def import_charging_stations(**kwargs):
-    importer = ChargingStationImporter(**kwargs)  
-    service_node_id = get_serivice_node_id(importer.SERVICE_NODE_NAMES["fi"]) 
-    service_id = generate_service(service_node_id,\
+    importer = ChargingStationImporter(**kwargs)
+    service_node_id = get_or_generate_service_node(importer.SERVICE_NODE_NAMES["fi"],\
+        "Vapaa-aika", importer.SERVICE_NODE_NAMES)  
+    service_id = get_or_generate_service(service_node_id,\
         importer.SERVICE_NAMES["fi"], importer.SERVICE_NAMES)
-    generate_service_node(service_node_id, "Vapaa-aika", importer.SERVICE_NODE_NAMES)
     importer.import_charging_stations(service_id)

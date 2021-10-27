@@ -67,7 +67,9 @@ class Command(BaseCommand):
 
     @db.transaction.atomic
     def import_units(self):
-        return import_units(logger=self.logger, importer=self)
+        import_units(logger=self.logger, importer=self)
+        #return import_units(logger=self.logger, importer=self)
+
 
     @db.transaction.atomic
     def import_addresses(self):

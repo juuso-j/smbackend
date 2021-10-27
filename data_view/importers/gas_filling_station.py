@@ -10,6 +10,7 @@ from data_view.models import (
 from .utils import fetch_json, delete_tables, GEOMETRY_URL
 logger = logging.getLogger("django")
 GAS_FILLING_STATIONS_URL = "https://services1.arcgis.com/rhs5fjYxdOG1Et61/ArcGIS/rest/services/GasFillingStations/FeatureServer/0/query?f=json&where=1%3D1&outFields=OPERATOR%2CLAT%2CLON%2CSTATION_NAME%2CADDRESS%2CCITY%2CZIP_CODE%2CLNG_CNG%2CObjectId"
+#GEOMETRY_URL = "https://data.foli.fi/geojson/bounds" # contains the boundries for location filtering
 
 
 class GasFillingStation:
@@ -22,7 +23,7 @@ class GasFillingStation:
         y = attributes.get("LAT",0)
         self.point = Point(x, y, srid=srid)              
         self.name = attributes.get("STATION_NAME", "")
-        self.address =attributes.get("ADDRESS", "")        
+        self.address = attributes.get("ADDRESS", "")        
         self.zip_code = attributes.get("ZIP_CODE", "")
         self.city = attributes.get("CITY", "")      
         self.operator = attributes.get("OPERATOR", "")
@@ -91,11 +92,7 @@ def save_to_database(objects, delete_table=True):
         description=description
     )[0]
     for object in objects:
-        is_active = object.is_active      
-        # x = object.x
-        # y = object.y      
-        # point = Point(x,y, srid=object.srid) 
-        # point.transform(settings.DEFAULT_SRID)  
+        is_active = object.is_active    
         point = object.point
         name = object.name
         address = object.address

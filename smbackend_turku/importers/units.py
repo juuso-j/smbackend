@@ -9,7 +9,9 @@ from django.utils import formats, translation
 from django.utils.dateparse import parse_date
 from munigeo.importer.sync import ModelSyncher
 from munigeo.models import Municipality
-
+from data_view.importers.gas_filling_station import (
+    get_filtered_gas_filling_station_objects  
+)
 from services.management.commands.services_import.services import (
     remove_empty_service_nodes,
     update_service_node_counts,
@@ -104,11 +106,52 @@ def get_municipality(name):
     except Municipality.DoesNotExist:
         return None
 
+def create_language_dict(value):
+    lang_dict = {}
+    for lang in LANGUAGES:
+        lang_dict[lang] = value
+    return lang_dict
+
+def get_gas_filling_units(id_off):
+    units = []
+    objects = get_filtered_gas_filling_station_objects()
+
+    for i, object in enumerate(objects):    
+        unit = {}
+        unit["koodi"] = str(id_off+i)
+        unit["nimi_kieliversiot"] = {}
+        unit["nimi_kieliversiot"] = create_language_dict(object.name)
+        unit["fyysinenPaikka"] = {}
+        unit["fyysinenPaikka"]["leveysaste"] = object.point.y
+        unit["fyysinenPaikka"]["pituusaste"] = object.point.x
+        unit["fyysinenPaikka"]["koordinaattiAsettuKasin"] = "True"
+        unit["fyysinenPaikka"]["osoitteet"] = []
+        osoite = {}
+        osoite["katuosoite_fi"] = object.address
+        osoite["katuosoite_sv"] = object.address
+        osoite["katuosoite_en"] = object.address
+        osoite["postinumero"] = object.zip_code
+        osoite["postitoimipaikka_fi"] = object.city
+        osoite["postitoimipaikka_sv"] = object.city
+        osoite["postitoimipaikka_en"] = object.city
+        unit["fyysinenPaikka"]["osoitteet"].append(osoite)
+        unit["tila"] = {}
+        unit["tila"]["koodi"] = "1"
+        unit["tila"]["nimi"] = "Aktiivinen, julkaistu"
+        unit["kuvaus_kieliversiot"] = {}
+        description = object.operator + " " + object.lng_cng
+        unit["kuvaus_kieliversiot"] = create_language_dict(description)
+        extra = {}
+        extra["operator"] = object.operator
+        extra["lng_cng"] = object.lng_cng        
+        unit["extra"] = extra
+        units.append(unit)
+
+    return units
+
 
 class UnitImporter:
-    unitsyncher = ModelSyncher(Unit.objects.all(), lambda obj: obj.id)
-
-  
+    unitsyncher = ModelSyncher(Unit.objects.all(), lambda obj: obj.id)  
 
     def __init__(self, logger=None, importer=None, test=False):
         self.logger = logger
@@ -118,6 +161,9 @@ class UnitImporter:
     def import_units(self):
         #import_gas()
         units = get_turku_resource("palvelupisteet", "palvelupisteet")
+        gas_units = get_gas_filling_units(self._get_next_koodi(units))
+        units += gas_units
+        breakpoint()
         #if not self.test:
 
             # units += get_gas_filling_station_units(

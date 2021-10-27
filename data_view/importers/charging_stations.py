@@ -28,24 +28,18 @@ class ChargingStation:
         self.point = Point(x, y, srid=srid)
         self.name = attributes.get("NAME", "")
         self.address = attributes.get("ADDRESS", "")
+        temp_str = self.address.split(",")[1].strip()        
+        self.zip_code = temp_str.split(" ")[0]
+        self.city = temp_str.split(" ")[1]
         self.url = attributes.get("URL", "")
         self.charger_type = attributes.get("TYPE", "")        
-    
-    def __init__OLD(self, elem, srid=settings.DEFAULT_SRID):
-        self.is_active = True
-     
-        geometry = elem.get("geometry", None)
-        attributes = elem.get("attributes", None)      
-        x = geometry.get("x",0)
-        y = geometry.get("y",0)     
-        self.point(x, y, srid=srid) 
-     
-        self.x = geometry.get("x",0)
-        self.y = geometry.get("y",0)      
-        self.name = attributes.get("NAME", "")
-        self.address = attributes.get("ADDRESS", "")
         self.url = attributes.get("URL", "")
-        self.charger_type = attributes.get("TYPE", "")           
+        # address fields for service unit model
+        self.street_address = self.address.split(",")[0]            
+        self.address_postal_full = "{}{}".\
+            format(self.address.split(",")[0], self.address.split(",")[1])
+        
+    
 
 
 def build_and_filter_objects_from_locations(locations):
@@ -55,7 +49,7 @@ def build_and_filter_objects_from_locations(locations):
         breakpoint()
 
 
-def get_filtered_charging_station_objects_TODO(): 
+def get_filtered_charging_station_objects_latauspaikka(): 
     json_data = fetch_json(CHARGING_STATIONS_URL)
     locations = json_data["locations"]
    
