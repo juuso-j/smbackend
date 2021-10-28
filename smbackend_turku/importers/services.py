@@ -7,6 +7,11 @@ from services.management.commands.services_import.keyword import KeywordHandler
 from services.management.commands.services_import.services import (
     update_service_root_service_nodes,
 )
+from smbackend_turku.importers.stations import (
+    GasFillingStationImporter,
+    ChargingStationImporter,   
+)
+
 from services.models import Service, ServiceNode
 from smbackend_turku.importers.utils import (
     convert_code_to_int,
@@ -39,9 +44,7 @@ class ServiceImporter:
         keyword_handler = KeywordHandler(logger=self.logger)
         self._import_services(keyword_handler)
         self._import_service_nodes(keyword_handler)
-        #import_gas_service()
-        #import_gas_service_node()
-
+        
 
 
     def _import_service_nodes(self, keyword_handler):
@@ -49,9 +52,10 @@ class ServiceImporter:
         # if not self.test:
         #     service_classes += get_charging_station_service_node(ylatason_koodi="1_35", koodi="2_98")
         #     #service_classes += get_gas_filling_station_service_node(ylatason_koodi="1_35", koodi="1_99")
-        koodit = [service["koodi"] for service in service_classes]
-        print(koodit)
+        # koodit = [service["koodi"] for service in service_classes]
+        # print(koodit)
         # return a list
+   
         tree = self._build_servicetree(service_classes)
         # for service in service_classes:
         for parent_node in tree:
@@ -59,16 +63,49 @@ class ServiceImporter:
             if parent_node["koodi"] in BLACKLISTED_SERVICE_NODES:
                 continue
             self._handle_service_node(parent_node, keyword_handler)
+    
+        self._handle_external_service_node(GasFillingStationImporter)
+        self._handle_external_service_node(ChargingStationImporter)
+
         self.nodesyncher.finish()
+    
+    
+    def _handle_external_service_node(self, importer):
+        try:
+            service_node = ServiceNode.objects.get(name=importer.SERVICE_NODE_NAME)
+            service_node = self.nodesyncher.get(service_node.id)    
+            self.nodesyncher.mark(service_node)
+            
+        except ServiceNode.DoesNotExist:
+            pass
+     
+    def _handle_char_stations_service_node(self):
+        try:
+            service_node = ServiceNode.objects.get(name=GasFillingStationImporter.SERVICE_NODE_NAME)
+            service_node = self.nodesyncher.get(service_node.id)    
+            self.nodesyncher.mark(service_node)
+            
+        except ServiceNode.DoesNotExist:
+            pass
+     
 
     def _import_services(self, keyword_handler):
-        services = get_turku_resource("palvelut", "palvelut")
-        # if not self.test:
-        #     #services += get_gas_filling_station_service()
-        #     services += get_charging_station_service()
+        services = get_turku_resource("palvelut", "palvelut")        
         for service in services:
             self._handle_service(service, keyword_handler)
+       
+        self._handle_external_service(GasFillingStationImporter)
+        self._handle_external_service(ChargingStationImporter)
         self.servicesyncher.finish()
+
+    def _handle_external_service(self, importer):
+        try:
+            service = Service.objects.get(name=importer.SERVICE_NAME)
+            service = self.servicesyncher.get(service.id)
+
+            self.servicesyncher.mark(service)
+        except Service.DoesNotExist:
+            pass
 
     def _save_object(self, obj):
         if obj._changed:
@@ -131,7 +168,7 @@ class ServiceImporter:
             )
 
         self.nodesyncher.mark(obj)
-
+        
         for child_node in node["children"]:
             self._handle_service_node(child_node, keyword_handler)
 

@@ -33,6 +33,11 @@ from smbackend_turku.importers.utils import (
     set_syncher_object_field,
     set_syncher_tku_translated_field,
 )
+from smbackend_turku.importers.stations import (
+    GasFillingStationImporter,
+    ChargingStationImporter,   
+)
+
 
 UTC_TIMEZONE = pytz.timezone("UTC")
 
@@ -161,9 +166,9 @@ class UnitImporter:
     def import_units(self):
         #import_gas()
         units = get_turku_resource("palvelupisteet", "palvelupisteet")
-        gas_units = get_gas_filling_units(self._get_next_koodi(units))
-        units += gas_units
-        breakpoint()
+        #gas_units = get_gas_filling_units(self._get_next_koodi(units))
+        #units += gas_units
+        #breakpoint()
         #if not self.test:
 
             # units += get_gas_filling_station_units(
@@ -175,10 +180,13 @@ class UnitImporter:
         
         for unit in units:
             self._handle_unit(unit)
+    
 
+        self._handle_external_units(GasFillingStationImporter)
+        self._handle_external_units(ChargingStationImporter)
         self.unitsyncher.finish()
-        update_service_node_counts()
-        # NOTE commented this
+        
+        update_service_node_counts()       
         remove_empty_service_nodes(self.logger)
 
     def _get_next_koodi(self, units):
@@ -186,6 +194,21 @@ class UnitImporter:
         Return t
         """
         return int(units[-1]["koodi"])+1
+
+
+    def _handle_external_units(self, importer):
+        service = None
+        try:
+            service = Service.objects.get(name=importer.SERVICE_NAME)
+        except:
+            pass        
+        if service:
+            units_qs = Unit.objects.filter(services__id=service.id) 
+            for unit in units_qs.all():
+                synch_unit = self.unitsyncher.get(unit.id)
+                self.unitsyncher.mark(synch_unit)
+                
+       
 
     def _handle_unit(self, unit_data):
         unit_id = int(unit_data["koodi"])
