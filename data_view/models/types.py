@@ -23,7 +23,7 @@ class ContentTypes(BaseTypes):
     }
     type_name = models.CharField(
         max_length=3, 
-        choices= [(k,v) for k,v in CONTENT_TYPES.items()], 
+        choices=[(k,v) for k,v in CONTENT_TYPES.items()], 
         null=True
     )
   

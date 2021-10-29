@@ -6,9 +6,7 @@ from . import MobileUnit
 
 class BaseStation(models.Model):
     id = models.UUIDField(default=uuid.uuid4, primary_key=True, editable=False)
-    #name = models.CharField(max_length=64, null=True)
-    #address = models.CharField(max_length=128, null=True)
-
+    
     class Meta:
         abstract = True
 
@@ -25,13 +23,7 @@ class ChargingStationContent(BaseStation):
 
 class GasFillingStationContent(BaseStation):
     lng_cng = models.CharField(max_length=8, null=True)
-    operator = models.CharField(max_length=32, null=True)
-    # units = GenericRelation(
-    #     MobileUnit,
-    #     content_type_field="content_type",
-    #     object_id_field="content_id",
-    #     related_query_name="contents"
-    #   )
+    operator = models.CharField(max_length=32, null=True)  
     mobile_unit = models.OneToOneField(
         MobileUnit, 
         related_name="gas_filling_station_content",

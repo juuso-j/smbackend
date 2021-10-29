@@ -76,7 +76,7 @@ def save_to_database():
     # )
 
 
-    #breakpoint()
+  
 
 class Command(BaseCommand):
 

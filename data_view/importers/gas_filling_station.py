@@ -33,58 +33,34 @@ class GasFillingStation:
         self.address_postal_full = "{} {} {}"\
             .format(self.address, self.zip_code, self.city)
 
-def get_filtered_gas_filling_station_objects(): 
+def get_filtered_gas_filling_station_objects(json_data=None): 
     """
     Returns a list of GasFillingStation objects that are filtered by location.
     """   
     geometry_data = fetch_json(GEOMETRY_URL) 
     # Polygon used the detect if point intersects. i.e. is in the boundries.
     polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])  
-    json_data = fetch_json(GAS_FILLING_STATIONS_URL)
+    if not json_data:
+        json_data = fetch_json(GAS_FILLING_STATIONS_URL)
     #srid = json_data["spatialReference"]["wkid"]
     # NOTE, hack to fix srid 102100 causes "crs not found"
     srid = 4326
     # Create list of GasFillingStation objects
     objects = [GasFillingStation(data, srid=srid) for data in json_data["features"]]
     filtered_objects = []
-    # Filter objects
+    # Filter objects by their location
     for object in objects:
-        #point = Point(object.x, object.y)        
         if polygon.intersects(object.point):
             filtered_objects.append(object)
     logger.info("Filtered: {} gas filling stations by location to: {}."\
         .format(len(json_data["features"]), len(filtered_objects)))        
     return filtered_objects
-   
-
-
-# def get_json_filtered_by_location(json_data):
-#     geometry_data = fetch_json(GEOMETRY_URL) 
-#     polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])
-#     filtered_data = []
-#     #srid = json_data["spatialReference"]["wkid"]
-#     # NOTE, hack to fix srid 102100 causes "crs not found"
-#     srid = 3857    
-
-#     for data in json_data["features"]:
-#         lon = data["attributes"].get("LON",0)
-#         lat = data["attributes"].get("LAT",0)
-#         point = Point(lon, lat)
-#         if polygon.intersects(point):
-#             object = GasFillingStation(data, srid)
-#             filtered_data.append(object)
-#     logger.info("Filtered: {} gas filling stations by location to: {}."\
-#         .format(len(json_data["features"]), len(filtered_data)))
-#     return filtered_data
-
 
 @db.transaction.atomic  
 def save_to_database(objects, delete_table=True):
     if delete_table:
         delete_tables(ContentTypes.GAS_FILLING_STATION)        
     description = "Gas filling stations in province of SouthWest Finland."
-    # Create contet_type ins
-
     content_type = ContentTypes.objects.get_or_create(
         type_name=ContentTypes.GAS_FILLING_STATION,
         name="Gas Filling Station",
@@ -93,11 +69,8 @@ def save_to_database(objects, delete_table=True):
     )[0]
     for object in objects:
         is_active = object.is_active    
-        point = object.point
         name = object.name
-        address = object.address
-        #zip_code = object.zip_code
-        #city = object.city
+        address = object.address       
         address += ", " + object.zip_code + " " + object.city
         operator = object.operator
         lng_cng = object.lng_cng 
@@ -105,7 +78,7 @@ def save_to_database(objects, delete_table=True):
             is_active=is_active,
             name=name,
             address=address,
-            geometry=point,
+            geometry=object.point,
             content_type=content_type
         )
         content = GasFillingStationContent.objects.create(

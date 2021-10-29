@@ -27,8 +27,10 @@ class Command(BaseCommand):
             logger.info("Running charging_station_importer in test mode.")
             f = open(os.getcwd()+"/"+ContentTypes._meta.app_label+"/tests/"+options["test_mode"], "r")
             json_data = json.load(f)
+            objects = get_filtered_charging_station_objects(json_data=json_data)       
+
         else:
             logger.info("Fetcing charging stations from: {}"\
                 .format(CHARGING_STATIONS_URL))
             objects = get_filtered_charging_station_objects()
-            save_to_database(objects)
+        save_to_database(objects)

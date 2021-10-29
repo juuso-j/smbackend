@@ -22,7 +22,6 @@ class ChargingStation:
         self.is_active = True
         geometry = elem.get("geometry", None)
         attributes = elem.get("attributes", None)      
-        # self.srid = srid
         x = geometry.get("x",0)
         y = geometry.get("y",0) 
         self.point = Point(x, y, srid=srid)
@@ -55,14 +54,15 @@ def get_filtered_charging_station_objects_latauspaikka():
    
     breakpoint()
 
-def get_filtered_charging_station_objects(): 
+def get_filtered_charging_station_objects(json_data=None): 
     """
     Returns a list of ChargingStation objects that are filtered by location.
     """   
     geometry_data = fetch_json(GEOMETRY_URL) 
     # Polygon used the detect if point intersects. i.e. is in the boundries.
     polygon = Polygon(geometry_data["features"][0]["geometry"]["coordinates"][0])  
-    json_data = fetch_json(CHARGING_STATIONS_URL)
+    if not json_data:
+        json_data = fetch_json(CHARGING_STATIONS_URL)
     srid = json_data["spatialReference"]["wkid"]
     objects = [ChargingStation(data, srid=srid) for data in json_data["features"]]
     filtered_objects = []
@@ -90,11 +90,6 @@ def save_to_database(objects, delete_table=True):
 
     for object in objects:
         is_active = object.is_active 
-        # x = object.x
-        # y = object.y      
-        #point = Point(x,y, srid=object.srid) 
-        point = object.point
-        #point.transform(settings.DEFAULT_SRID)  
         name = object.name
         address = object.address
         url = object.url
@@ -103,7 +98,7 @@ def save_to_database(objects, delete_table=True):
             is_active=is_active,
             name=name,
             address=address,
-            geometry=point,
+            geometry=object.point,
             content_type=content_type
         )
         content = ChargingStationContent.objects.create(

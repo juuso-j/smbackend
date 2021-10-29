@@ -1,13 +1,10 @@
 from io import StringIO
 import pytest
-from django.conf import settings
 from django.core.management import call_command
-from django.contrib.gis.geos import Point
 from data_view.models import (
-    Unit,
+    MobileUnit,
     ContentTypes,
     ChargingStationContent,
-#    Geometry
 )
 
 def import_command(*args, **kwargs):
@@ -22,19 +19,18 @@ def import_command(*args, **kwargs):
         return out.getvalue()
 
 @pytest.mark.django_db
-def test__importer():
+def test_importer():
+
     out = import_command(test_mode="charging_stations.json")
     assert ContentTypes.objects.filter(type_name=ContentTypes.CHARGING_STATION).count() == 1
-    assert Unit.objects.filter(content_type__type_name=ContentTypes.CHARGING_STATION).count() == 2
-    assert ChargingStationContent.objects.all().count() == 2
-    assert ChargingStationContent.objects.filter(name__contains="ABC Tammisilta")
-    assert Geometry.objects.all().count() == 2
-    geom_obj = Geometry.objects.get(unit__charging_station_content__name__contains="ABC")
-    point = Point(258291.19004666203, 6708817.731819544, srid=settings.DEFAULT_SRID) 
-    assert geom_obj.geometry.coords == point.coords
-    out = import_command(test_mode="charging_stations.json")
-    assert ContentTypes.objects.filter(type_name=ContentTypes.CHARGING_STATION).count() == 1
-    assert Unit.objects.filter(content_type__type_name=ContentTypes.CHARGING_STATION).count() == 2
-    assert ChargingStationContent.objects.all().count() == 2
-    assert Geometry.objects.all().count() == 2
-    
+    assert MobileUnit.objects.filter(content_type__type_name=ContentTypes.CHARGING_STATION).count() == 2
+    assert MobileUnit.objects.get(name="AimoPark Stockmann Turku")
+    unit = MobileUnit.objects.get(name="Hotel Kakola")
+    assert unit
+    # Transform to source data srid
+    unit.geometry.transform(4326)
+    assert pytest.approx(unit.geometry.x, 0.0001) == 22.247
+    assert ChargingStationContent.objects.all().count() == 2  
+    content = ChargingStationContent.objects.get(mobile_unit__name="Hotel Kakola") 
+    assert content.charger_type == "Type2"
+    assert content.mobile_unit == unit
