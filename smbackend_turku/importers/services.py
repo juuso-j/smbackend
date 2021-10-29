@@ -49,13 +49,6 @@ class ServiceImporter:
 
     def _import_service_nodes(self, keyword_handler):
         service_classes = get_turku_resource("palveluluokat", "palvelukuokat")
-        # if not self.test:
-        #     service_classes += get_charging_station_service_node(ylatason_koodi="1_35", koodi="2_98")
-        #     #service_classes += get_gas_filling_station_service_node(ylatason_koodi="1_35", koodi="1_99")
-        # koodit = [service["koodi"] for service in service_classes]
-        # print(koodit)
-        # return a list
-   
         tree = self._build_servicetree(service_classes)
         # for service in service_classes:
         for parent_node in tree:

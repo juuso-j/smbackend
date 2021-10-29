@@ -22,12 +22,10 @@ def test_turku_services_import(get_turku_resource_mock):
 
     get_turku_resource_mock.return_value = get_test_resource(resource_name="palvelut")
     importer._import_services(keyword_handler)
-
     get_turku_resource_mock.return_value = get_test_resource(
         resource_name="palveluluokat"
     )
     importer._import_service_nodes(keyword_handler)
-
     update_service_root_service_nodes()
 
     service_1 = Service.objects.get(id=11)

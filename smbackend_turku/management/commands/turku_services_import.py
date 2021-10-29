@@ -67,9 +67,7 @@ class Command(BaseCommand):
 
     @db.transaction.atomic
     def import_units(self):
-        return import_units(logger=self.logger, importer=self)
-        #return import_units(logger=self.logger, importer=self)
-
+        return import_units(logger=self.logger, importer=self)   
 
     @db.transaction.atomic
     def import_addresses(self):
@@ -77,11 +75,17 @@ class Command(BaseCommand):
 
     @db.transaction.atomic
     def import_gas_filling_stations(self):
-        import_gas_filling_stations(logger=self.logger)
+        import_gas_filling_stations(
+            logger=self.logger, 
+            root_service_node_name="Vapaa-aika"
+            )
         
     @db.transaction.atomic
     def import_charging_stations(self):
-        import_charging_stations(logger=self.logger)
+        import_charging_stations(
+            logger=self.logger, 
+            root_service_node_name="Vapaa-aika"
+            )
 
 
     

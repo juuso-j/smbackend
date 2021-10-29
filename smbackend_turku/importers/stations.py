@@ -1,4 +1,5 @@
 from datetime import datetime
+from django.core.exceptions import ObjectDoesNotExist
 import pytz
 from functools import lru_cache
 from django.conf import settings
@@ -52,8 +53,11 @@ def get_first_available_id(model):
     :param model: the model class
     :return: the highest available id.
     """
-    return model.objects.all().order_by("-id")[0].id+1
-
+    queryset = model.objects.all()
+    if queryset.count() > 0:
+        return model.objects.all().order_by("-id")[0].id+1
+    else:
+        return 10000
 # def get_serivice_node_id(name):
 #     """
 #     Returns the service_node_id by given service_node name
@@ -86,8 +90,11 @@ def get_or_create_service_node(name, parent_name, service_node_names):
         # Find the highest unit id and add 1. This ensures that we get unique ids
         service_node_id = get_first_available_id(ServiceNode)
         service_node = ServiceNode(id=service_node_id)
-        parent_id = ServiceNode.objects.get(name=parent_name).id
-        parent = ServiceNode.objects.get(id=parent_id)        
+    try:
+        parent = ServiceNode.objects.get(name=parent_name)      
+    except ServiceNode.DoesNotExist:
+        raise ObjectDoesNotExist("Parent ServiceNode name: {} not found.".format(parent_name))
+    else:
         service_node.parent = parent
         set_tku_translated_field(service_node, "name", service_node_names)
         service_node.last_modified_time = datetime.now(UTC_TIMEZONE)
@@ -118,6 +125,7 @@ def get_or_create_service(service_node_id, service_name, service_names):
     service.save()    
     return service_id
 
+
 class GasFillingStationImporter:
 
     SERVICE_NODE_NAME = "Kaasutankkausasemat"
@@ -132,17 +140,17 @@ class GasFillingStationImporter:
         "sv": "Gas station",
         "en": "Gas filling station"
     }
-    
-    def __init__(self, logger=None, importer=None, test=False):
+
+    def __init__(self, logger=None, root_service_node_name=None, test_data=None):
         self.logger = logger
-        self.importer = importer
-        self.test = test   
+        self.root_service_node_name = root_service_node_name
+        self.test_data = test_data
 
     def import_gas_filling_stations(self, service_id):
         self.logger.info("Importing gas filling stations...")       
         Unit.objects.filter(services__id=service_id).delete()      
         id_off = get_first_available_id(Unit)
-        filtered_objects = get_filtered_gas_filling_station_objects()
+        filtered_objects = get_filtered_gas_filling_station_objects(json_data=self.test_data)
         
         for i, data_obj in enumerate(filtered_objects):
             unit_id = i + id_off            
@@ -197,15 +205,16 @@ class ChargingStationImporter():
         "en": "Charging station"
     }
 
-    def __init__(self, logger=None, importer=None, test=False):
+    def __init__(self, logger=None, importer=None, root_service_node_name=None, test_data=None):
         self.logger = logger
         self.importer = importer
-        self.test = test 
+        self.root_service_node_name = root_service_node_name
+        self.test_data = test_data
 
     def import_charging_stations(self, service_id):
         self.logger.info("Importing charging stations...")
         Unit.objects.filter(services__id=service_id).delete()
-        filtered_objects = get_filtered_charging_station_objects()
+        filtered_objects = get_filtered_charging_station_objects(json_data=self.test_data)
         id_off =  get_first_available_id(Unit)
         for i, data_obj in enumerate(filtered_objects):
             unit_id = i + id_off
@@ -245,9 +254,9 @@ class ChargingStationImporter():
        
     
 def import_gas_filling_stations(**kwargs):
-    importer = GasFillingStationImporter(**kwargs)  
+    importer = GasFillingStationImporter(**kwargs) 
     service_node_id = get_or_create_service_node(importer.SERVICE_NODE_NAME,\
-        "Vapaa-aika", importer.SERVICE_NODE_NAMES)
+        importer.root_service_node_name, importer.SERVICE_NODE_NAMES)
     service_id = get_or_create_service(service_node_id,\
         importer.SERVICE_NAME, importer.SERVICE_NAMES)
     importer.import_gas_filling_stations(service_id)
@@ -255,7 +264,7 @@ def import_gas_filling_stations(**kwargs):
 def import_charging_stations(**kwargs):
     importer = ChargingStationImporter(**kwargs)
     service_node_id = get_or_create_service_node(importer.SERVICE_NODE_NAME,\
-        "Vapaa-aika", importer.SERVICE_NODE_NAMES)  
+        importer.root_service_node_name, importer.SERVICE_NODE_NAMES)  
     service_id = get_or_create_service(service_node_id,\
         importer.SERVICE_NAME, importer.SERVICE_NAMES)
     importer.import_charging_stations(service_id)
